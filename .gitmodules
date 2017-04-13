@@ -1,0 +1,3 @@
+[submodule "code/contrib/qluacpp"]
+	path = code/contrib/qluacpp
+	url = https://github.com/elelel/qluacpp.git
