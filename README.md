@@ -1,6 +1,6 @@
 ## Tutorial for QluaCpp library ##
 
-**QluaCpp** is a library to write C++ plugins for **Quik** trading terminal
+[**QluaCpp**](https://github.com/elelel/qluacpp) is a library to write C++ plugins for **Quik** trading terminal
 
 ### Running the code ###
 Clone the repository **recursing all submodules**. Then use *code* directory as the source for CMake. The code is tested only with Microsoft compiler.
