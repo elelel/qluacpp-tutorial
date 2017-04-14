@@ -30,7 +30,7 @@ void my_main(lua::state& l) {
 
 5.3.1.3. Регистрируем callback
 
-В функции luaopen_qluacpp_tutorial добавляем регистрацию нашего callback:
+В функции luaopen_lualib_qluacpp_tutorial добавляем регистрацию нашего callback:
 
 ```c++
 q.set_callback<qlua::callback::main>(my_main);
