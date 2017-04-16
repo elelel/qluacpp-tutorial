@@ -1,3 +1,12 @@
 [submodule "basic/contrib/qluacpp"]
 	path = basic/contrib/qluacpp
 	url = https://github.com/elelel/qluacpp.git
+[submodule "dividend_threat/contrib/qluacpp"]
+	path = dividend_threat/contrib/qluacpp
+	url = https://github.com/elelel/qluacpp.git
+[submodule "dividend_threat/contrib/curl"]
+	path = dividend_threat/contrib/curl
+	url = https://github.com/elelel/curl.git
+[submodule "dividend_threat/contrib/Catch"]
+	path = dividend_threat/contrib/Catch
+	url = https://github.com/philsquared/Catch.git
