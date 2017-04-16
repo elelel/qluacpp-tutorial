@@ -160,7 +160,7 @@ target_link_libraries(lualib_qluacpp_tutorial qluacpp)
 
 ### Создание едиственного исходного файла примера ###
 
-Создаем файл [qluacpp_tutorial.cpp](src/qlua_tutorial.cpp) в директории [src](src) и откркываем его в редакторе.
+Создаем файл [qluacpp_tutorial.cpp](src/qlua_tutorial.cpp) в директории [src](src) и открываем его в редакторе.
 
 Декларируем через директивы препроцессора, что мы создаем "библиотеку" Lua:
 
