@@ -98,7 +98,9 @@ cmake_minimum_required(VERSION 3.4.0)
 project(qluacpp_tutorial)
 ```
 
-### Создаем переменные с путями к используемым в проекте библиотекам и их зависимостях ###
+### Переменные с путями проекта ###
+
+Создаем переменные с путями к используемым в проекте библиотекам и их зависимостях
 
 ```
 set(TOP_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -107,7 +109,9 @@ set(LUACPP "${TOP_DIR}/contrib/qluacpp/contrib/luacpp")
 set(LUA "${TOP_DIR}/contrib/lua")
 ```
 
-### Указываем для qluacpp через переменную QLUACPP_LUA_LIBRARY, путь к скаченному lib-файлу библиотеки Lua ###
+### Пути к библиотеке Lua для библиотеки qluacpp ###
+
+Указываем для qluacpp через переменную QLUACPP_LUA_LIBRARY, путь к скаченному lib-файлу библиотеки Lua
 
 ```
 set(QLUACPP_LUA_LIBRARY "${LUA}/lua5.1.lib")
@@ -119,7 +123,9 @@ set(QLUACPP_LUA_LIBRARY "${LUA}/lua5.1.lib")
 set(QLUACPP_LUA_INCLUDE_DIR "${LUA}/include")
 ```
 
-### Перечисляем директории, которые должны быть доступны для директивы #include препроцессора. Они включают и include-директории зависимостей используемых проектом библиотек ###
+### Директории Include ###
+
+Перечисляем директории, которые должны быть доступны для директивы #include препроцессора. Они включают и include-директории зависимостей используемых проектом библиотек
 
 ```
 include_directories(
