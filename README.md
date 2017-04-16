@@ -5,5 +5,8 @@
 ### Running the code ###
 Clone the repository **recursing all submodules**. Then use [code](code) directory as the source for CMake. The code is tested only with Microsoft compiler.
 
-### Tutorial ###
-Step by step [tutorial (ru)](/doc/ru/README.md) is available, mirroring the included tutorial code.
+### Tutorials (Ru)###
+
+ - [Basic](/basic)
+   Basic tutorial, shows how to set up the environment and write a very simple plugin
+
