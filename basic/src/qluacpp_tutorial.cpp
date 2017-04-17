@@ -34,4 +34,3 @@ extern "C" {
     return 0;
   }
 }
-

@@ -39,5 +39,3 @@ set(SOURCES
 add_library(lualib_dividend_threat SHARED ${SOURCES})
 
 target_link_libraries(lualib_dividend_threat qluacpp libcurl)
-
-
