@@ -10,3 +10,9 @@
 [submodule "dividend_threat/contrib/Catch"]
 	path = dividend_threat/contrib/Catch
 	url = https://github.com/philsquared/Catch.git
+[submodule "log_all_trades/contrib/qluacpp"]
+	path = log_all_trades/contrib/qluacpp
+	url = https://github.com/elelel/qluacpp.git
+[submodule "log_all_trades/contrib/readerwriterqueue"]
+	path = log_all_trades/contrib/readerwriterqueue
+	url = https://github.com/cameron314/readerwriterqueue.git
