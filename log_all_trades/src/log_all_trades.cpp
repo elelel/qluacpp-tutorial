@@ -17,7 +17,7 @@ static struct luaL_reg ls_lib[] = {
 void my_main(lua::state& l) {
   using namespace std::chrono_literals;
   qlua::extended_api q(l);
-  for (int i = 0; i < 5; ++i) {
+  while (true) {
     std::this_thread::sleep_for(1s);
   }
 }
