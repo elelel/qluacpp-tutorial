@@ -1,11 +1,24 @@
-## Tutorial for QluaCpp library ##
+You are looking at tutorial page for QluaCpp library in Russian. For English, see [README_en.md](README_en.md).
 
-[**QluaCpp**](https://github.com/elelel/qluacpp) is a library to write C++ plugins for **Quik** trading terminal
+## Обучающие примеры для библиотеки QluaCpp ##
 
-### Running the code ###
-Clone the repository **recursing all submodules**. Then run CMake to generate project from a tutorial's root. The code is tested only with Microsoft compiler.
+[**QluaCpp**](https://github.com/elelel/qluacpp) - библиотека для написания плагинов на C++ для торгового терминала **Quik**
 
-### Tutorials (Ru) ###
+### Как скомпилировать код ###
+Склонируйте репозитарий, не забыв рекурсивно получить **все подмодули**.
+Запустите CMake, чтоб сгенерировать проект из директории каждого примера. 
+Код проверялся только на компиляторе Microsoft.
 
- - [Basic](/basic) tutorial, shows how to set up the environment and write a very simple plugin
+### Примеры ###
 
+Внутри каждой директории примеров находится более подробное описание в индивидуальном README.md
+
+ - [Базовый](basic) пример. Подробно пошагово описывает, как поднять среду разработки и скомпилировать простейший пример, который выводит информационные сообщения в терминале:
+ 
+ ![Информационное сообщение с тиком](basic/doc/message_screenshot.png)
+ 
+ - [Угроза падения цены из-за дивидендов](dividend_threat). Простой плагин, который скачивает из Интернета данные по закрытию реестров и дивидендной доходности
+  показывает таблицу в терминале Quik, добавляя красный оттенок фона пропорционально уровню "угрозы".
+  
+ ![Dividend threat screenshot](dividend_threat/doc/table_screenshot.png)
+ 
