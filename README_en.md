@@ -15,4 +15,4 @@ Clone the repository **recursing all submodules**. Then run CMake to generate pr
  
  ![Dividend threat screenshot](dividend_threat/doc/table_screenshot.png)
  
-
+- [Log all market trades](log_all_trades). Plugin that logs all market trades to a text file asynchronously in a separate thread.
