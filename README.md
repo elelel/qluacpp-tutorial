@@ -22,3 +22,4 @@ You are looking at tutorial page for QluaCpp library in Russian. For English, se
   
  ![Dividend threat screenshot](dividend_threat/doc/table_screenshot.png)
  
+- [Запись таблицы обезличенных сделок в файл](log_all_trades). Плагин асинхронно в отдельном потоке записывает информацию о сделках из таблицы обезличенных сделок в текстовой файл. 
