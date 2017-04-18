@@ -4,16 +4,24 @@
 #include <iostream>
 
 static std::ofstream& operator<<(std::ofstream& file, const log_record& rec) {
+  auto remove_crlf = [] (char c[]) {
+    const auto len = strlen(c);
+    while ((len > 0) && ((c[len-1] == '\n') || (c[len-1] == '\r')))
+      c[len-1] = 0x00;
+  };
+
   using std::chrono::system_clock;
   std::time_t tt(system_clock::to_time_t(rec.time));
-  char timec[256];
-  ctime_s(timec, 256, &tt);
-  file << timec;
+  char timec_event[256];
+  ctime_s(timec_event, 256, &tt);
+  remove_crlf(timec_event);
   tt = system_clock::to_time_t(system_clock::now());
-  ctime_s(timec, 256, &tt);
-  file << timec;
-  file << "\t" << rec.data.sec_code
-       << "\t" << rec.data.trade_num
+  char timec_written[256];
+  ctime_s(timec_written, 256, &tt);
+  remove_crlf(timec_written);
+  file << timec_event
+       << "\t" << timec_written
+       << "\t" << rec.data.sec_code
        << "\t" << rec.data.price
        << "\t" << rec.data.value
        << "\t" << rec.data.qty
@@ -31,7 +39,7 @@ trade_logger::trade_logger() :
   flusher_busy_(false),
   thread_(std::move(std::thread(periodic_flusher, std::ref(*this)))) {
   file_.open("all_trade_log.txt");
-  file_ << "Event time\tTime written\tSecCode\tTrade num\tPrice\tValue\tQty" << std::endl;
+  file_ << "Event time\tTime written\tSecCode\tPrice\tValue\tQty" << std::endl;
   running_ = true;
 }
 
