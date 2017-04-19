@@ -3,9 +3,6 @@
   #define LUA_BUILD_AS_DLL
 #endif
 
-#include <chrono>
-#include <thread>
-
 #include <qlua>
 
 #include "calendar.hpp"
