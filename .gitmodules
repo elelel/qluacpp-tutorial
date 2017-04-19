@@ -16,3 +16,9 @@
 [submodule "log_all_trades/contrib/readerwriterqueue"]
 	path = log_all_trades/contrib/readerwriterqueue
 	url = https://github.com/cameron314/readerwriterqueue.git
+[submodule "save_orders/contrib/qluacpp"]
+	path = save_orders/contrib/qluacpp
+	url = https://github.com/elelel/qluacpp.git
+[submodule "save_orders/contrib/json"]
+	path = save_orders/contrib/json
+	url = https://github.com/nlohmann/json.git
