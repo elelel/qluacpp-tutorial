@@ -15,13 +15,7 @@ struct log_record {
 struct trade_logger {
   static trade_logger& instance();
 
-  std::atomic<bool>& running();
-  std::atomic<bool>& flusher_busy();
-  moodycamel::ReaderWriterQueue<log_record>& queue();
-  std::ofstream& file();
   void update(const qlua::alltrade& data);
-
-  static void periodic_flusher(trade_logger& logger);
   
 private:
   trade_logger();
@@ -33,4 +27,6 @@ private:
   moodycamel::ReaderWriterQueue<log_record> queue_;
   std::thread thread_;
 
+  moodycamel::ReaderWriterQueue<log_record>& queue();
+  static void periodic_flusher(trade_logger& logger);
 };

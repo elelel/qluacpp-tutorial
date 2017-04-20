@@ -55,22 +55,6 @@ trade_logger::~trade_logger() {
   }
 }
 
-moodycamel::ReaderWriterQueue<log_record>& trade_logger::queue() {
-  return queue_;
-}
-
-std::ofstream& trade_logger::file() {
-  return file_;
-}
-
-std::atomic<bool>& trade_logger::running() {
-  return running_;
-}
-
-std::atomic<bool>& trade_logger::flusher_busy() {
-  return flusher_busy_;
-}
-
 void trade_logger::update(const qlua::alltrade& data) {
   log_record rec{std::chrono::system_clock::now(), data};
   queue_.enqueue(rec);
@@ -79,15 +63,15 @@ void trade_logger::update(const qlua::alltrade& data) {
 void trade_logger::periodic_flusher(trade_logger& logger) {
   using namespace std::chrono_literals;
   while (true) {
-    if (logger.running()) {
-      logger.flusher_busy() = true;
+    if (logger.running_) {
+      logger.flusher_busy_ = true;
       // Write to file once per minute and flush it
       log_record rec;
-      while (logger.queue().try_dequeue(rec)) {
-        logger.file() << rec;
+      while (logger.queue_.try_dequeue(rec)) {
+        logger.file_ << rec;
       }
-      logger.file().flush();
-      logger.flusher_busy() = false;
+      logger.file_.flush();
+      logger.flusher_busy_ = false;
     }
     std::this_thread::sleep_for(60s);
   }

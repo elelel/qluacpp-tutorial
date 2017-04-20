@@ -22,3 +22,6 @@
 [submodule "save_orders/contrib/json"]
 	path = save_orders/contrib/json
 	url = https://github.com/nlohmann/json.git
+[submodule "save_orders/contrib/concurrentqueue"]
+	path = save_orders/contrib/concurrentqueue
+	url = https://github.com/cameron314/concurrentqueue.git
