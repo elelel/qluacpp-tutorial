@@ -6,7 +6,7 @@
 #include <chrono>
 #include <thread>
 
-#include <qlua>
+#include <qluacpp/qlua>
 
 static struct luaL_reg ls_lib[] = {
   { NULL, NULL }
@@ -14,7 +14,7 @@ static struct luaL_reg ls_lib[] = {
 
 void my_main(lua::state& l) {
   using namespace std::chrono_literals;
-  qlua::extended_api q(l);
+  qlua::api api(l);
   q.message("qluacpp tutorial: Starting main handler");
   for (int i = 0; i < 5; ++i) {
     q.message("qluacpp tutorial: Tick " + std::to_string(i));
