@@ -1,5 +1,4 @@
 *~
-basic/contrib/lua
-dividend_threat/contrib/lua
-log_all_trades/contrib/lua
-save_orders/contrib/lua
+contrib/lua
+
+
