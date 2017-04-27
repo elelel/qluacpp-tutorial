@@ -4,6 +4,8 @@
 [submodule "contrib/curl"]
 	path = contrib/curl
 	url = https://github.com/elelel/curl.git
+       	branch = FixCMakePerlDependency
 [submodule "contrib/Catch"]
 	path = contrib/Catch
 	url = https://github.com/philsquared/Catch.git
+
