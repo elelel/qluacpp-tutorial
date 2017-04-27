@@ -10,7 +10,7 @@
 git clone --recurse-submodules https://github.com/elelel/qluacpp-tutorial.git c:\source\basic_tutorial
 mkdir c:\build\basic_tutorial_basic
 cd c:\build\basic_tutorial_basic
-cmake -G "NMake Makefiles" -DQLUACPP_LUA_INCLUDE=c:\lib\lua\include -DQLUACPP_LUA_LIBRARY=c:\lib\lua\lua51.lib c:\source\basic_tutorial\basic
+cmake -G "NMake Makefiles" -DLUA_INCLUDE_DIR=c:\lib\lua\include -DLUA_LIBRARIES=c:\lib\lua\lua51.lib c:\source\basic_tutorial\basic
 nmake
 ```
 
@@ -36,10 +36,7 @@ nmake
 
 ### CMake ###
 
-Библиотека qluacpp в данный момент является статически компилируемой библиотекой. Хотя в дальнейшем вероятен перевод в
-header-only, сейчас необходима компиляция в отдельный трансляционный юнит. Поэтому использование CMake, при помощи
-которого собирается сама библиотека, обязателен как минимум для сборки самой библиотеки. Для удобства и сам пример
-будет разрабатываться с использованием CMake.
+Библиотека qluacpp в данный момент является header-only библиотекой. Использование CMake не обязательно при использовании qluacpp, но для удобства сам пример будет разрабатываться с использованием CMake.
 
 ### Компилятор ###
 
@@ -112,17 +109,17 @@ set(LUACPP "${TOP_DIR}/contrib/qluacpp/contrib/luacpp")
 set(LUA "${TOP_DIR}/contrib/lua")
 ```
 
-Для библиотеки qluacpp необходимо указать пути к файлам библиотеки lua.
-Для lib-файла делаем это через переменную QLUACPP_LUA_LIBRARY, настроив ее на путь к скаченному lib-файлу библиотеки Lua:
+Устанавлиаем указать пути к файлам библиотеки lua.
+Для lib-файла делаем это через переменную LUA_LIBRARIES, настроив ее на путь к скаченному lib-файлу библиотеки Lua:
 
 ```cmake
-set(QLUACPP_LUA_LIBRARY "${LUA}/lua5.1.lib")
+set(LUA_LIBRARIES "${LUA}/lua5.1.lib")
 ```
 
 Указываем путь к загаловкам скаченной библиотеки Lua:
 
 ```cmake
-set(QLUACPP_LUA_INCLUDE_DIR "${LUA}/include")
+set(LUA_INCLUDE_DIR "${LUA}/include")
 ```
 
 Перечисляем директории, которые должны быть доступны для директивы #include препроцессора. Они включают и include-директории зависимостей используемых проектом библиотек.
@@ -131,15 +128,8 @@ set(QLUACPP_LUA_INCLUDE_DIR "${LUA}/include")
 include_directories(
   ${QLUACPP}/include
   ${LUACPP}/include
-  ${QLUACPP_LUA_INCLUDE_DIR}
+  ${LUA_INCLUDE_DIR}
 )
-```
-
-Подключаем компиляцию библиотеки qluacpp:
-```cmake
-if (NOT TARGET qluacpp)
-  add_subdirectory(${QLUACPP} qluacpp)
-endif()
 ```
 
 Перечисляем исходные файлы нашего плагина:
@@ -159,14 +149,14 @@ add_library(lualib_basic_tutorial SHARED ${SOURCES})
 Указываем конфигурацию линковки:
 
 ```cmake
-target_link_libraries(lualib_basic_tutorial qluacpp)
+target_link_libraries(lualib_basic_tutorial ${LUA_LIBRARIES})
 ```
 
 ## Пишем код плагина ##
 
 ### Создание едиственного исходного файла примера ###
 
-Создаем файл [basic_tutorial.cpp](src/qlua_tutorial.cpp) в директории [src](src) и открываем его в редакторе.
+Создаем файл [basic_tutorial.cpp](src/basic_tutorial.cpp) в директории [src](src) и открываем его в редакторе.
 
 Декларируем через директивы препроцессора, что мы создаем "библиотеку" Lua:
 
@@ -175,6 +165,13 @@ target_link_libraries(lualib_basic_tutorial qluacpp)
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
   #define LUA_BUILD_AS_DLL
 #endif
+```
+
+Подключаем заголовки из стандартной библиотеки для работы со временем и потоками (используются, чтоб делать паузу в функции main).
+
+```c++
+#include <chrono>
+#include <thread>
 ```
 
 После этого подключаем библиотеку qluacpp:
@@ -191,6 +188,20 @@ static struct luaL_reg ls_lib[] = {
 };
 ```
 
+Создаем обработчик Lua-функции main:
+```c++
+void my_main(lua::state& l) {
+  using namespace std::chrono_literals;
+  qlua::api q(l);
+  q.message("qluacpp tutorial: Starting main handler");
+  for (int i = 0; i < 5; ++i) {
+    q.message(("qluacpp tutorial: Tick " + std::to_string(i)).c_str());
+    std::this_thread::sleep_for(1s);
+  }
+  q.message("qluacpp tutorial: Terminating main handler");
+}
+```
+
 Создаем функцию с C ABI, которая будет инициализировать "библиотеку":
 
 ```c++
@@ -202,23 +213,17 @@ extern "C" {
 }
 ```
 
-В функции *luaopen_lualib_basic_tutorial* создаем объект интерфейса Lua с C++:
+Внутри функции *luaopen_lualib_basic_tutorial* создаем объект интерфейса Lua с C++:
 
 ```c++
     lua::state l(L);
 ```
 
-...и объект интерфейса Quik Lua:
+Подключаем наш обработчик для функции main qlua-скрипта. Эта функция будет видна из
+Lua как main и терминал Quik будет ее вызывать при описанных в файле помощи обстоятельствах:
 
 ```c++
-    qlua::extended_api q(l);
-```
-
-Библиотека qluacpp предлагает два объекта API для взаимодействия с Quik Lua: **api** и **extended_api**. Объект api является максимально близким к родному интерфейсу QLUA от Arqa, вплоть до повторения опечаток в названиях API функций, несоответствий и проч. Объект extended_api является надмножеством относительно объекта api, содержа также дополнительные функции для удобства программирования в C++, консистеность терминологии и др.
-
-Подключаем наш callback-обработчик для функции main qlua-скрипта:
-```c++
-q.set_callback<qlua::callback::main>(my_main);
+    ::lua::function::main().register_in_lua(l, my_main);
 ```
 
 Наконец, подключаем нашу "библиотеку" к Lua:
@@ -264,7 +269,6 @@ Cоздаем директорию *basic_tutorial_vs*. Заходим в нее
 где последний аругмент - путь к коду проекта, а опция -G указывает, под какую среду генерировать проект.
 
 После этого в указанной директории будет создан проект Visual Studio нашего плагина. Описание дальнейшей работы с Visual Studio не является предметом данного документа.
-
 
 
 ## Установка плагина в терминал Quik ##
