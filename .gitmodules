@@ -9,3 +9,6 @@
 	path = contrib/Catch
 	url = https://github.com/philsquared/Catch.git
 
+[submodule "contrib/readerwriterqueue"]
+	path = contrib/readerwriterqueue
+	url = https://github.com/cameron314/readerwriterqueue.git
