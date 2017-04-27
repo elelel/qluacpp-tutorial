@@ -7,7 +7,7 @@ Clone the repository **recursing all submodules**. Then run CMake to generate pr
 
 ### Tutorials (Ru) ###
 
- - [Basic](basic) tutorial. Shows how to set up the environment and write a very simple plugin that displays counting messages in Quik terminal:
+ - [Basic](basic_tutorial) tutorial. Shows how to set up the environment and write a very simple plugin that displays counting messages in Quik terminal:
  
- ![Message screenshot](basic/doc/message_screenshot.png)
+ ![Message screenshot](basic_tutorial/doc/message_screenshot.png)
  
