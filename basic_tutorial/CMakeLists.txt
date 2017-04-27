@@ -6,18 +6,14 @@ set(QLUACPP "${TOP_DIR}/contrib/qluacpp")
 set(LUACPP "${TOP_DIR}/contrib/qluacpp/contrib/luacpp")
 set(LUA "${TOP_DIR}/contrib/lua")
 
-set(QLUACPP_LUA_LIBRARY "${LUA}/lua5.1.lib")
-set(QLUACPP_LUA_INCLUDE_DIR "${LUA}/include")
+set(LUA_LIBRARIES "${LUA}/lua5.1.lib")
+set(LUA_INCLUDE_DIR "${LUA}/include")
 
 include_directories(
   ${QLUACPP}/include
   ${LUACPP}/include
-  ${QLUACPP_LUA_INCLUDE_DIR}
+  ${LUA_INCLUDE_DIR}
 )
-
-if (NOT TARGET qluacpp)
-  add_subdirectory(${QLUACPP} qluacpp)
-endif()
 
 set(SOURCES
   src/basic_tutorial.cpp
@@ -25,6 +21,4 @@ set(SOURCES
 
 add_library(lualib_basic_tutorial SHARED ${SOURCES})
 
-target_link_libraries(lualib_basic_tutorial qluacpp)
-
-
+target_link_libraries(lualib_basic_tutorial ${LUA_LIBRARIES})
