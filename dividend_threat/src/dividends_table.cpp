@@ -23,19 +23,20 @@ dividends_table::dividends_table(const calendar& c) :
 
 void dividends_table::create_table(const qlua::api& q) {
   table_id_ = q.AllocTable();
-  auto rc = q.AddColumn(table_id_, int(columns::ticker), "Ticker", true, q.constants().QTABLE_STRING_TYPE(), 15);
+  auto qtable_string_type = q.constant<unsigned int>("QTABLE_STRING_TYPE");
+  auto rc = q.AddColumn(table_id_, int(columns::ticker), "Ticker", true, qtable_string_type, 15);
   if (!rc) {
     q.message("dividend_threat: Could not create table column for ticker");
   }
-  rc = q.AddColumn(table_id_, int(columns::date), "Cutoff date", true, q.constants().QTABLE_STRING_TYPE(), 20);
+  rc = q.AddColumn(table_id_, int(columns::date), "Cutoff date", true, qtable_string_type, 20);
   if (!rc) {
     q.message("dividend_threat: Could not create table column for cutoff date");
   }
-  rc = q.AddColumn(table_id_, int(columns::days_left), "Days left", true, q.constants().QTABLE_STRING_TYPE(), 15);
+  rc = q.AddColumn(table_id_, int(columns::days_left), "Days left", true, qtable_string_type, 15);
   if (!rc) {
     q.message("dividend_threat: Could not create table column for days left");
   }
-  rc = q.AddColumn(table_id_, int(columns::div_return), "Dividend return", true, q.constants().QTABLE_STRING_TYPE(), 20);
+  rc = q.AddColumn(table_id_, int(columns::div_return), "Dividend return", true, qtable_string_type, 20);
   if (!rc) {
     q.message("dividend_threat: Could not create table column for dividend return");
   }
@@ -82,14 +83,14 @@ void dividends_table::create_row(const qlua::api& q, const calendar_record& rec)
   q.SetCell(table_id_, row_num, int(columns::date), rec.date<const std::string&>().c_str());
   q.SetCell(table_id_, row_num, int(columns::days_left), std::to_string(rec.days_left()).c_str());
   q.SetCell(table_id_, row_num, int(columns::div_return), rec.div_return<const std::string&>().c_str());
-  auto def_color = q.constants().QTABLE_DEFAULT_COLOR();
+  auto def_color = q.constant<int>("QTABLE_DEFAULT_COLOR");
   q.SetColor(table_id_, row_num, int(columns::ticker), get_ticker_color(rec), def_color, def_color, def_color);
   q.SetColor(table_id_, row_num, int(columns::date), get_days_left_color(rec), def_color, def_color, def_color);
   q.SetColor(table_id_, row_num, int(columns::days_left), get_days_left_color(rec), def_color, def_color, def_color);
   q.SetColor(table_id_, row_num, int(columns::div_return), get_div_ret_color(rec), def_color, def_color, def_color);
 }
 
-void dividends_table::show(qlua::extended_api& q) {
+void dividends_table::show(const qlua::api& q) {
   create_table(q);
-  show_window(q);
+  create_window(q);
 }

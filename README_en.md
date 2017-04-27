@@ -11,3 +11,5 @@ Clone the repository **recursing all submodules**. Then run CMake to generate pr
  
  ![Message screenshot](basic_tutorial/doc/message_screenshot.png)
  
+ - [Dividend threat](dividend_threat) tutorial. A simple plugin that downloads dividend close dates and expected returns from the Web, then displays a table. It highlights each instrument according to "threat" level, assuming the sooner dividend cutoff date is and the higher are expected returns - the more threat pressure the instrument experiences. Demonstrates how to use **qluacpp** to draw table windows in Quik terminal
+ 

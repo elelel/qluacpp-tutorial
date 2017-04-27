@@ -16,3 +16,8 @@ You are looking at tutorial page for QluaCpp library in Russian. For English, se
  - [Базовый](basic_tutorial) пример. Подробно пошагово описывает, как поднять среду разработки и скомпилировать простейший пример, который выводит информационные сообщения в терминале:
  
  ![Информационное сообщение с тиком](basic_tutorial/doc/message_screenshot.png)
+
+ - [Угроза падения цены из-за дивидендов](dividend_threat). Простой плагин, который скачивает из Интернета данные по закрытию реестров и дивидендной доходности, после чего показывает таблицу в терминале Quik, добавляя красный оттенок фона пропорционально уровню "угрозы":
+
+ ![Dividend threat screenshot](dividend_threat/doc/table_screenshot.png)
+
