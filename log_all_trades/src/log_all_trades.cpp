@@ -10,6 +10,8 @@
 
 #include "trade_logger.hpp"
 
+#include <iostream>
+
 static struct luaL_reg ls_lib[] = {
   { NULL, NULL }
 };
