@@ -77,7 +77,7 @@ struct QTable {
   }
 private:
   qlua::api q_;
-  const int t_id_{0};
+  int t_id_{0};
   std::string caption_;
   bool created_{false};
   int curr_col_{0};

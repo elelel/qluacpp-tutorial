@@ -11,8 +11,6 @@
 #include "quik_table_wrapper.hpp"
 #include "ntime.hpp"
 
-#include <iostream>
-
 static struct luaL_reg ls_lib[] = {
   { NULL, NULL }
 };
@@ -44,9 +42,9 @@ void my_main(lua::state& l) {
   q.message(("table with id = " + std::to_string(t.t_id()) + " created").c_str(), 1);
   t.AddColumn("test1", q.constant<int>("QTABLE_INT_TYPE"), 10, format1);
   t.AddColumn("test2", q.constant<int>("QTABLE_INT_TYPE"), 10, format2);
-  t.AddColumn("test3", q.constant<int>("QTABLE_CACHED_STRING_TYPE"), 10);
-  t.AddColumn("test4", q.constant<int>("QTABLE_TIME_TYPE"), 10);
-  t.AddColumn("test5", q.constant<int>("QTABLE_CACHED_STRING_TYPE"), 10);
+  t.AddColumn("test3", q.constant<int>("QTABLE_CACHED_STRING_TYPE"), 50);
+  t.AddColumn("test4", q.constant<int>("QTABLE_TIME_TYPE"), 50);
+  t.AddColumn("test5", q.constant<int>("QTABLE_CACHED_STRING_TYPE"), 50);
   t.SetCaption("Test");
   t.Show();
 
@@ -62,20 +60,23 @@ void my_main(lua::state& l) {
     t.SetValue<int>(row, "test1", i);
     t.SetValue<int>(row, "test2", i);
 
-    // We have QTable method for this, but qlua.chm example uses
-    // direct QLua API calls here
     q.SetCell(t.t_id(), row, 3, q.GetWindowCaption(t.t_id()));
 
     std::time_t date_tt = system_clock::to_time_t(system_clock::now());
-    struct tm* tm_info;
-    tm_info = localtime(&date_tt);
+    tm tm_info;
+#ifdef _MSC_VER
+    // Miscrosoft compilers break C++11 standard
+    localtime_s(&tm_info, &date_tt);
+#else
+    localtime_s(&date_tt, &tm_info);
+#endif
     
     char buf[256];
-    snprintf(buf, 256, " (%02d:%02d:%02d)", tm_info->tm_hour, tm_info->tm_min, tm_info->tm_sec);
+    snprintf(buf, 256, " (%02d:%02d:%02d)", tm_info.tm_hour, tm_info.tm_min, tm_info.tm_sec);
     q.SetCell(t.t_id(), row, 4,
-              (NiceTime(*tm_info) + buf).c_str(),
-              tm_info->tm_hour*10000+tm_info->tm_min*100 + tm_info->tm_sec);
-    q.SetCell(t.t_id(), row, 5, NiceTime(*tm_info).c_str());
+              (NiceTime(tm_info) + buf).c_str(),
+              tm_info.tm_hour*10000+tm_info.tm_min*100 + tm_info.tm_sec);
+    q.SetCell(t.t_id(), row, 5, NiceTime(tm_info).c_str());
     std::this_thread::sleep_for(1s);
     i += 1;
   }

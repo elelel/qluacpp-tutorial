@@ -4,7 +4,7 @@
 QTable::QTable(const qlua::api& q) :
   q_(q) {
   try {
-    auto t_id_ = q_.AllocTable();    
+    t_id_ = q_.AllocTable();    
   } catch (...) {
     q_.message("QTable: failed to create QTable", 3);
   }
@@ -17,12 +17,15 @@ QTable::~QTable() {
 
 // отобразить в терминале окно с созданной таблицей
 void QTable::Show() {
-  q_.CreateWindow(t_id_);
-  if (caption_ != "") {
-    // задать заголовок для окна
-    q_.SetWindowCaption(t_id_, caption_.c_str());
+  if (q_.CreateWindow(t_id_) == 1) {
+    if (caption_ != "") {
+      // задать заголовок для окна
+      q_.SetWindowCaption(t_id_, caption_.c_str());
+    }
+    created_ = true;    
+  } else {
+    q_.message(("Failed to create window for table " + std::to_string(t_id_)).c_str());
   }
-  created_ = true;
 }
 
 // если окно с таблицей закрыто, возвращает «true»
@@ -70,6 +73,7 @@ void QTable::AddColumn(const std::string& name,
   cd.c_type = c_type;
   cd.id = curr_col_;
   q_.AddColumn(t_id_, curr_col_, name.c_str(), true, c_type, width);
+  columns_.insert({name, cd});
 }
 
 void QTable::Clear() {
