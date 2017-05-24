@@ -39,8 +39,7 @@ void OnAllTrade(const lua::state& l,
   // Request additional data on instrument from QLua
   qlua::api q(l);
   q.getSecurityInfo(rec.class_code.c_str(), rec.sec_code.c_str(),
-                    [&rec] (const lua::state& s) {
-                      auto sec_info = s.at<::qlua::table::securities>(-1);
+                    [&rec] (const auto& sec_info) {
                       rec.name = sec_info().name();
                       return 1;  // How many stack items should be cleaned up (poped)
                     });
