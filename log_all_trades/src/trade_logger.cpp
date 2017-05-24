@@ -71,13 +71,7 @@ std::atomic<bool>& trade_logger::flusher_busy() {
   return flusher_busy_;
 }
 
-void trade_logger::update(const ::lua::entity<::lua::type_policy<::qlua::table::all_trades>>& data) {
-  log_record rec;
-  rec.time = std::chrono::system_clock::now();
-  rec.sec_code = data().sec_code();
-  rec.price = data().price();
-  rec.value = data().value();
-  rec.qty = data().qty();
+void trade_logger::update(const log_record& rec) {
   queue_.enqueue(rec);
 }
 

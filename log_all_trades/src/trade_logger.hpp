@@ -9,6 +9,8 @@
 
 struct log_record {
   std::chrono::time_point<std::chrono::system_clock> time;
+  std::string name;
+  std::string class_code;
   std::string sec_code;
   double price;
   double value;
@@ -22,7 +24,7 @@ struct trade_logger {
   std::atomic<bool>& flusher_busy();
   moodycamel::ReaderWriterQueue<log_record>& queue();
   std::ofstream& file();
-  void update(const ::lua::entity<::lua::type_policy<::qlua::table::all_trades>>& data);
+  void update(const log_record& rec);
 
   static void periodic_flusher(trade_logger& logger);
   
