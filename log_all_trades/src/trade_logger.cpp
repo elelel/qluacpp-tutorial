@@ -21,6 +21,7 @@ static std::ofstream& operator<<(std::ofstream& file, const log_record& rec) {
   remove_crlf(timec_written);
   file << timec_event
        << "\t" << timec_written
+       << "\t" << rec.name
        << "\t" << rec.sec_code
        << "\t" << rec.price
        << "\t" << rec.value
