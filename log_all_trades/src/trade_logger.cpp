@@ -19,14 +19,40 @@ static std::ofstream& operator<<(std::ofstream& file, const log_record& rec) {
   char timec_written[256];
   ctime_s(timec_written, 256, &tt);
   remove_crlf(timec_written);
-  file << timec_event
-       << "\t" << timec_written
-       << "\t" << rec.name
-       << "\t" << rec.sec_code
-       << "\t" << rec.price
-       << "\t" << rec.value
-       << "\t" << rec.qty
-       << "\n";
+  file << "Event at " << timec_event << ", "
+       << "written at " << timec_written << ". ";
+
+  switch (rec.rec_type) {
+  case record_type::ALL_TRADE:
+    file << "All trades. "
+         << "Name: " << rec.all_trade.name << ", "
+         << "Code: " << rec.all_trade.sec_code << ", "
+         << "Price: " << rec.all_trade.price << ", "
+         << "Value: " << rec.all_trade.value << ", "
+         << "Qty: " << rec.all_trade.qty
+         << "\n";
+    break;
+  case record_type::CLASSES: {
+    file << "All classes. Class codes: ";
+    bool need_comma{false};
+    for (const auto& name : rec.classes.codes) {
+      if (need_comma) { file << ", "; };
+      file << name;
+      need_comma = true;
+    }
+    file << "\n";
+    break;
+  }
+  case record_type::CLASS_INFO:
+    file << "Class info. "
+         << "Name: " << rec.class_info.name << ", "
+         << "Code: " << rec.class_info.code << ", "
+         << "Number of parameters: " << rec.class_info.npars << ", "
+         << "Number of securities: " << rec.class_info.nsecs << "\n";
+    break;
+  default:
+    file << "Unknown record type " << int(rec.rec_type) << "\n";
+  }
   return file;
 }
 
@@ -40,7 +66,6 @@ trade_logger::trade_logger() :
   flusher_busy_(false),
   thread_(std::move(std::thread(periodic_flusher, std::ref(*this)))) {
   file_.open("all_trade_log.txt");
-  file_ << "Event time\tTime written\tSecCode\tPrice\tValue\tQty" << std::endl;
   running_ = true;
 }
 

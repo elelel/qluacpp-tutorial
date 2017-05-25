@@ -7,14 +7,41 @@
 #include <readerwriterqueue.h>
 #include <qluacpp/qlua>
 
-struct log_record {
-  std::chrono::time_point<std::chrono::system_clock> time;
+enum class record_type {
+  NONE,
+  CLASSES,
+  CLASS_INFO,
+  ALL_TRADE
+};
+
+struct classes_record {
+  std::vector<std::string> codes;
+};
+
+struct class_info_record {
+  std::string name;
+  std::string code;
+  unsigned int npars;
+  unsigned int nsecs;
+  std::vector<std::string> securities;
+};
+
+struct all_trade_record {
   std::string name;
   std::string class_code;
   std::string sec_code;
   double price;
   double value;
   double qty;
+};
+  
+struct log_record {
+  std::chrono::time_point<std::chrono::system_clock> time;
+  record_type rec_type;
+
+  all_trade_record all_trade;
+  classes_record classes;
+  class_info_record class_info;
 };
 
 struct trade_logger {
