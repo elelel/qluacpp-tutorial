@@ -27,7 +27,22 @@
 
 Пример файла с итоговыми данными:
 ```
-
+Event at Thu May 25 03:59:49 2017, written at Thu May 25 03:59:49 2017. All classes. Class codes: EQOB, PSAU, PSSU, AUCT, AUCT_BND, SMAL, EQDB, EQQI, TQBR, TQOB, TQQI, TQDE, INDX, RTSIDX, FRGNIDX, TQIF, TQTF, REPORT, ALGO_ICEBERG, ALGO_VOLATIL, ALGO_GTD, TQTC, EQRP, PSRP, TQOD
+Event at Thu May 25 03:59:49 2017, written at Thu May 25 03:59:49 2017. Class info. Name: А1-Облигации, Code: EQOB, Number of parameters: 64, Number of securities: 1239
+Event at Thu May 25 03:59:49 2017, written at Thu May 25 03:59:49 2017. Class info. Name: РПС: ММВБ ФБ: Первичное размещение (облигации), Code: PSAU, Number of parameters: 64, Number of securities: 23
+Event at Thu May 25 03:59:49 2017, written at Thu May 25 03:59:49 2017. Class info. Name: РПС: ММВБ ФБ: Первичное размещение (акции), Code: PSSU, Number of parameters: 64, Number of securities: 0
+...
+Event at Thu May 25 04:02:39 2017, written at Thu May 25 04:02:49 2017. All trades. Name: Таганрогский комб.завод ОАО ао, Code: TGKO, Price: 0.185, Value: 1.85, Qty: 1
+Event at Thu May 25 04:02:40 2017, written at Thu May 25 04:02:49 2017. All trades. Name: Таганрогский комб.завод ОАО ао, Code: TGKO, Price: 0.185, Value: 1.85, Qty: 1
+Event at Thu May 25 04:02:40 2017, written at Thu May 25 04:02:49 2017. All trades. Name: Таганрогский комб.завод ОАО ао, Code: TGKO, Price: 0.185, Value: 1.85, Qty: 1
+Event at Thu May 25 04:02:41 2017, written at Thu May 25 04:02:49 2017. All trades. Name: Таганрогский комб.завод ОАО ао, Code: TGKO, Price: 0.185, Value: 1.85, Qty: 1
+Event at Thu May 25 04:02:41 2017, written at Thu May 25 04:02:49 2017. All trades. Name: Таганрогский комб.завод ОАО ао, Code: TGKO, Price: 0.185, Value: 1.85, Qty: 1
+Event at Thu May 25 04:02:42 2017, written at Thu May 25 04:02:49 2017. All trades. Name: Таганрогский комб.завод ОАО ао, Code: TGKO, Price: 0.185, Value: 1.85, Qty: 1
+Event at Thu May 25 04:02:43 2017, written at Thu May 25 04:02:49 2017. All trades. Name: Таганрогский комб.завод ОАО ао, Code: TGKO, Price: 0.185, Value: 1.85, Qty: 1
+Event at Thu May 25 04:02:43 2017, written at Thu May 25 04:02:49 2017. All trades. Name: Медиахолдинг (ПАО) ао, Code: ODVA, Price: 0.192, Value: 192, Qty: 1
+Event at Thu May 25 04:02:43 2017, written at Thu May 25 04:02:49 2017. All trades. Name: Таганрогский комб.завод ОАО ао, Code: TGKO, Price: 0.185, Value: 1.85, Qty: 1
+Event at Thu May 25 04:02:43 2017, written at Thu May 25 04:02:49 2017. All trades. Name: Таганрогский комб.завод ОАО ао, Code: TGKO, Price: 0.185, Value: 1.85, Qty: 1
+Event at Thu May 25 04:02:44 2017, written at Thu May 25 04:02:49 2017. All trades. Name: Таганрогский комб.завод ОАО ао, Code: TGKO, Price: 0.185, Value: 1.85, Qty: 1
 ```
 
 Как видно, время записи получения события и время его сохранения отличаются: события записываются в файл один раз в минуту.
