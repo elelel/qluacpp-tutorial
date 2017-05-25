@@ -46,8 +46,10 @@ struct log_record {
 
 struct trade_logger {
   static trade_logger& instance();
-
+  void terminate();
+  
   std::atomic<bool>& running();
+  std::atomic<bool>& terminated();
   std::atomic<bool>& flusher_busy();
   moodycamel::ReaderWriterQueue<log_record>& queue();
   std::ofstream& file();
@@ -60,6 +62,7 @@ private:
   ~trade_logger();
 
   std::atomic<bool> running_;
+  std::atomic<bool> terminated_;
   std::atomic<bool> flusher_busy_;
   std::ofstream file_;
   moodycamel::ReaderWriterQueue<log_record> queue_;

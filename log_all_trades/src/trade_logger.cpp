@@ -63,6 +63,7 @@ trade_logger& trade_logger::instance() {
 
 trade_logger::trade_logger() :
   running_(false),
+  terminated_(false),
   flusher_busy_(false),
   thread_(std::move(std::thread(periodic_flusher, std::ref(*this)))) {
   file_.open("all_trade_log.txt");
@@ -70,14 +71,25 @@ trade_logger::trade_logger() :
 }
 
 trade_logger::~trade_logger() {
+  terminate();
+}
+
+void trade_logger::terminate() {
+  //  std::cout << "Terminating" << std::endl;
   running_ = false;
   if (!flusher_busy_) {
+    //    std::cout << "Flushing" << std::endl;
     // Flush the queue, in case anything is left unwritten
     log_record rec;
     while (queue_.try_dequeue(rec)) {
       file_ << rec;
     }
     file_.close();
+  }
+  //  std::cout << "Terminated true" << std::endl;
+  if (!terminated_) {
+    terminated_ = true;
+    thread_.join();
   }
 }
 
@@ -93,6 +105,10 @@ std::atomic<bool>& trade_logger::running() {
   return running_;
 }
 
+std::atomic<bool>& trade_logger::terminated() {
+  return terminated_;
+}
+
 std::atomic<bool>& trade_logger::flusher_busy() {
   return flusher_busy_;
 }
@@ -103,7 +119,8 @@ void trade_logger::update(const log_record& rec) {
 
 void trade_logger::periodic_flusher(trade_logger& logger) {
   using namespace std::chrono_literals;
-  while (true) {
+  bool done{false};
+  while (!logger.terminated()) {
     if (logger.running()) {
       logger.flusher_busy() = true;
       // Write to file once per minute and flush it
@@ -114,6 +131,9 @@ void trade_logger::periodic_flusher(trade_logger& logger) {
       logger.file().flush();
       logger.flusher_busy() = false;
     }
-    std::this_thread::sleep_for(60s);
+    for (int i = 1; i <= 60; ++i) {
+      if (logger.terminated()) break;
+      std::this_thread::sleep_for(1s);
+    }
   }
 }
