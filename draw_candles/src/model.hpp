@@ -34,7 +34,7 @@ struct model {
   model(const qlua::api& q,
         const std::string& tag,
         const size_t max_count);
-
+  void update();
   const view_data& view();
   size_t& max_count();
   std::string& tag();
@@ -43,9 +43,8 @@ private:
   std::string tag_;
   size_t max_count_{25};
 
+  qlua::api q_;
   moodycamel::ReaderWriterQueue<candle> queue_;
-
+  unsigned int last_candle_idx_{0};
   view_data view_data_;
-
-  void update(const ::lua::entity<::lua::type_policy<::qlua::table::candle>>& lua_candle);
 };

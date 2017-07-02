@@ -27,7 +27,8 @@ void my_main(lua::state& l) {
     return;
   }
   while (!gui::instance().done_) {
-    std::this_thread::sleep_for(200ms);
+    m.update();
+    std::this_thread::sleep_for(1s);
   }
 }
 

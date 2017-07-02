@@ -3,27 +3,32 @@
 #include <algorithm>
 
 model::model(const qlua::api& q, const std::string& tag, const size_t max_count) :
+  q_(q),
   tag_(tag),
   max_count_(max_count) {
-  auto total = q.getNumCandles(tag_.c_str());
+  update();
+  }
+
+void model::update() {
+  auto total = q_.getNumCandles(tag_.c_str());
   if (total >= max_count_) {
     auto quik_candles_reader = [this]
-      (const ::lua::entity<::lua::type_policy<::qlua::table::candle>>& t, // структура со свечкой
+      (const ::lua::entity<::lua::type_policy<::qlua::table::candle>>& c, // структура со свечкой
        const unsigned int i, // индекс свечки - not used
        const ::lua::entity<::lua::type_policy<unsigned int>>& n, // количество свечек - not used
        const ::lua::entity<::lua::type_policy<const char*>>& l // легенда (подпись) графика - not used
        ) {
-      update(t);
+      queue_.enqueue({c().high(), c().low(), c().open(), c().close(), c().volume()});
     };
     
-    // Read only candles that we need from Quik
-    q.getCandlesByIndex(tag_.c_str(), 0, total - max_count_, max_count_, quik_candles_reader);
+    // Read only candles starting after the last candle received,
+    // but no more than the last max_count_ candles
+    auto start_idx = last_candle_idx_ + 1;
+    if (start_idx < (total - max_count_)) start_idx = total - max_count_;
+    auto count = total - start_idx;
+    q_.getCandlesByIndex(tag_.c_str(), 0, start_idx, count, quik_candles_reader);
+    last_candle_idx_ = start_idx + count;
   }
-  }
-
-void model::update(const ::lua::entity<::lua::type_policy<::qlua::table::candle>>& lua_candle) {
-  queue_.enqueue({lua_candle().high(), lua_candle().low(),
-        lua_candle().open(), lua_candle().close(), lua_candle().volume()});
 }
 
 size_t& model::max_count() {
