@@ -5,10 +5,6 @@
 model::model(const qlua::api& q, const std::string& tag, const size_t max_count) :
   tag_(tag),
   max_count_(max_count) {
-  // Clear queue
-  candle c;
-  while (queue_.try_dequeue(c)) {};
-
   auto total = q.getNumCandles(tag_.c_str());
   if (total >= max_count_) {
     auto quik_candles_reader = [this]

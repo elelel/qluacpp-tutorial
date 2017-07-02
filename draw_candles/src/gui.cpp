@@ -76,7 +76,7 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
       DeleteObject(brush);
       ++i;
     }
-    // Voluem gauge
+    // Volume gauge
     const long offset = 10;
     std::string vol_txt{"Volume:"};
     TextOut(ps.hdc, offset, chart_height + 5, vol_txt.c_str(), vol_txt.size());
