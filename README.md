@@ -51,4 +51,4 @@ Event at Thu May 25 04:02:44 2017, written at Thu May 25 04:02:49 2017. All trad
 ![Draw candles screenshot](draw_candles/doc/screenshot.png)
 
 - [Получение информации и отрисовка свечей графика в реальном времени по коллбеку](draw_candles_rt). Отрисовывает свечи в реальном времене по мере  поступления иформации о них по коллбеку
-
+![Draw candles screenshot](draw_candles/doc/screencast.gif)
