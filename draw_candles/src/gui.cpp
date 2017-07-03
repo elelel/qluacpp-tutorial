@@ -159,8 +159,10 @@ gui& gui::instance() {
 }
 
 void gui::repaint() {
-  if (hwnd_ != nullptr)
+  if (hwnd_ != nullptr) {
+    InvalidateRect((HWND)hwnd_, NULL, true);
     PostMessage((HWND)hwnd_, WM_PAINT, 0, 0);
+  }
 }
 
 void gui::create(const std::string& title, model* m) {
