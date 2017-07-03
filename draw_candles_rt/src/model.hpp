@@ -1,9 +1,11 @@
 #pragma once
 
-#include <list>
+
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #include <qluacpp/qlua>
 
@@ -17,33 +19,20 @@ struct model {
     double idx;
   };
 
-  struct view_data {
-    std::list<candle> candles;
-    double max_high{0};
-    double min_high{0};
-    double max_low{0};
-    double min_low{0};
-    double max_open{0};
-    double min_open{0};
-    double max_close{0};
-    double min_close{0};
-    double max_price{0};
-    double min_price{0};
-    double max_volume{0};
-    double min_volume{0};
-  };
-
   model(const qlua::api& q,
         const std::string& sec_class, const std::string& sec_code, const unsigned int interval,
         const size_t max_count);
   void update(unsigned int idx);
   
-  const view_data& view();
+  const std::vector<candle>& candles() const;
+  void wait();
+  void notify();
   size_t& max_count();
   std::string& sec_class();
   std::string& sec_code();
   unsigned int& interval();
-  
+
+  std::function<void()> on_new_data = [] () { return; };
 private:
   std::string sec_class_;
   std::string sec_code_;
@@ -53,8 +42,11 @@ private:
   std::unique_ptr<qlua::data_source> ds_;
   unsigned int last_candle_idx_{0};
 
-  view_data view_data_;
+  std::vector<candle> candles_;
 
+  std::condition_variable cv_;
+  bool ready_{true};
   std::mutex mutex_;
+
 
 };

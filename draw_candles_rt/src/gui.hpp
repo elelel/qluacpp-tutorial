@@ -10,6 +10,8 @@ struct gui {
   void repaint();
   void terminate();
 
+  std::vector<std::string>& gui::data_unavailable_text();
+  
   model* model_;
 
   std::string title_;
@@ -24,4 +26,6 @@ struct gui {
 
 private:
   gui() {};
+
+  std::vector<std::string> data_unavailable_text_;
 };

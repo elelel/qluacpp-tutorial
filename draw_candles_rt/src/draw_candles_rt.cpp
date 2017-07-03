@@ -22,9 +22,10 @@ void my_main(lua::state& l) {
   using namespace std::chrono_literals;
   qlua::api q(l);
   static std::string sec_class{"TQBR"};
-  static std::string sec_code{"SNGSP"};
+  static std::string sec_code{"SBER"};
   m = std::unique_ptr<model>(new model(q, sec_class, sec_code, q.constant<unsigned int>("INTERVAL_M1"), 50));
   try {
+    gui::instance().data_unavailable_text() = {"Data is not available..."};
     gui::instance().create("QluaCPP RT candles demo - " + sec_class + ":" + sec_code, m.get());
   } catch (std::runtime_error e) {
     q.message((std::string("qluacpp rt candles demo failed to create gui window: ")
@@ -32,7 +33,7 @@ void my_main(lua::state& l) {
     return;
   }
   while (!gui::instance().done_) {
-    std::this_thread::sleep_for(200ms);
+    std::this_thread::sleep_for(100ms);
   }
 }
 
@@ -45,7 +46,6 @@ std::tuple<int> OnStop(const lua::state& l,
 void qluacpp_candles_cb(const lua::state&l,
                         const ::lua::entity<::lua::type_policy<unsigned int>> idx) {
   m->update(idx());
-  gui::instance().repaint();
 }
 
 LUACPP_STATIC_FUNCTION2(main, my_main)
