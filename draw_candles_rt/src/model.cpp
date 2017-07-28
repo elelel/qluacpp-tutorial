@@ -89,6 +89,7 @@ auto model::candles() const -> const std::vector<candle>& {
 void model::notify() {
   std::unique_lock<std::mutex> lock(mutex_);
   ready_ = true;
+  lock.unlock();
   cv_.notify_one();
 }
 
