@@ -17,6 +17,8 @@ You are looking at tutorial page for QluaCpp library in Russian. For English, se
  
  ![Информационное сообщение с тиком](basic_tutorial/doc/message_screenshot.png)
  
+ - [Подключение внешней DLL на C++](basic_dll). Демонстрирует, как создать проект для двух DLL: плагина для QLua и собственной отдельной DLL с C++ интерфейсом.
+ 
  - [Пример 1 из qlua.chm](qlua_chm_ex1). Пример из приложения 1 оригинального файла помощи qlua, портированный на QluaCpp. Заполняет таблицу строками с текущим временем и тестовыми данными в разном формате.
  
  ![Пример отображения таблицы скрипта из приложения 1 qlua.chm](qlua_chm_ex1/doc/qlua_chm_ex1.png)
