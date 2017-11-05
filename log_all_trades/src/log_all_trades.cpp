@@ -42,26 +42,26 @@ void my_main(lua::state& l) {
     for (const auto& code : r_classes.codes) {
       class_info_record r;
       try {
-      q.getClassInfo(code.c_str(), [&r] (const auto& class_info) {
-          r.name = class_info().name();
-          r.code = class_info().code();
-          r.npars = class_info().npars();
-          r.nsecs = class_info().nsecs();
-        });
-      auto class_secs = q.getClassSecurities(code.c_str());
-      char* ptr = (char*)class_secs;
-      std::string sec_name;
-      while (strlen(ptr) > 0) {
-        if (*ptr == ',') {
-          r.securities.push_back(sec_name);
-          sec_name = "";
-        } else sec_name += *ptr;
-        ++ptr;
-      }
-      rec.rec_type = record_type::CLASS_INFO;
-      rec.class_info = r;
-      rec.time = std::chrono::system_clock::now();
-      trade_logger::instance().update(rec);
+        q.getClassInfo(code.c_str(), [&r] (const auto& class_info) {
+            r.name = class_info().name();
+            r.code = class_info().code();
+            r.npars = class_info().npars();
+            r.nsecs = class_info().nsecs();
+          });
+        auto class_secs = q.getClassSecurities(code.c_str());
+        char* ptr = (char*)class_secs;
+        std::string sec_name;
+        while (strlen(ptr) > 0) {
+          if (*ptr == ',') {
+            r.securities.push_back(sec_name);
+            sec_name = "";
+          } else sec_name += *ptr;
+          ++ptr;
+        }
+        rec.rec_type = record_type::CLASS_INFO;
+        rec.class_info = r;
+        rec.time = std::chrono::system_clock::now();
+        trade_logger::instance().update(rec);
       } catch (std::exception e) {
         q.message((std::string("log_all_trades: failed to run getClassInfo for ") +
                    code + ", exception: " + e.what()).c_str());
