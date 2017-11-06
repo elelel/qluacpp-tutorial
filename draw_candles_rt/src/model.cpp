@@ -27,6 +27,27 @@ model::model(const qlua::api& q,
   }
   }
 
+model::~model() {
+  if (ds_) {
+    try {
+      ds_->SetEmptyCallback();
+    } catch (std::runtime_error e) {
+      std::string msg("Failed to set empty callback on model destruction: ");
+      msg += e.what();
+      MessageBoxA(NULL, msg.c_str(), "Draw candles RT error", MB_OK);
+    }
+    /*
+    // Close() returns nil instead of bool for some reason
+    try {
+      ds_->Close();
+    } catch (std::runtime_error e) {
+      std::string msg("Failed to close datasource on model destruction: ");
+      msg += e.what();
+      MessageBoxA(NULL, msg.c_str(), "Draw candles RT error", MB_OK);
+      }*/
+  }
+}
+
 void model::update(const unsigned int idx) {
   using namespace std::chrono_literals;
   const unsigned int ds_sz = ds_->Size();

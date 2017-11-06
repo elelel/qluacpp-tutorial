@@ -39,6 +39,7 @@ void my_main(lua::state& l) {
 
 std::tuple<int> OnStop(const lua::state& l,
                        ::lua::entity<::lua::type_policy<int>> signal) {
+  m = nullptr;
   gui::instance().terminate();
   return std::make_tuple(int(1));
 }

@@ -22,6 +22,7 @@ struct model {
   model(const qlua::api& q,
         const std::string& sec_class, const std::string& sec_code, const unsigned int interval,
         const size_t max_count);
+  ~model();
   void update(unsigned int idx);
   
   const std::vector<candle>& candles() const;
