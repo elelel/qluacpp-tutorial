@@ -11,8 +11,11 @@ struct bot_status {
   enum column {
     CLASS = 1,
     NAME,
+    SEC_PRICE_STEP,
     BALANCE,
     SPREAD,
+    BUY_PRICE,
+    SELL_PRICE,
     BUY_ORDER,
     SELL_ORDER
   };

@@ -88,6 +88,7 @@ void OnQuote(const lua::state& l,
 LUACPP_STATIC_FUNCTION2(main, my_main)
 LUACPP_STATIC_FUNCTION3(OnStop, OnStop, int)
 LUACPP_STATIC_FUNCTION3(OnOrder, OnOrder, ::qlua::table::order)
+LUACPP_STATIC_FUNCTION4(OnQuote, OnQuote, const char*, const char*)
                         
 extern "C" {
   LUALIB_API int luaopen_lualib_l2q_spread_bot(lua_State *L) {
@@ -96,6 +97,7 @@ extern "C" {
     ::lua::function::main().register_in_lua(l, my_main);
     ::lua::function::OnStop().register_in_lua(l, OnStop);
     ::lua::function::OnOrder().register_in_lua(l, OnOrder);
+    ::lua::function::OnQuote().register_in_lua(l, OnQuote);
 
     luaL_openlib(L, "lualib_l2q_spread_bot", ls_lib, 0);
     return 0;

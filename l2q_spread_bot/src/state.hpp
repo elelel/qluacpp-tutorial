@@ -21,6 +21,7 @@ struct bot_state {
   };
   
   struct instrument_info {
+    double sec_price_step{0.0};
     // How many lots on balance are operated by this bot    
     size_t bot_balance{0};
     // Bot's buy order
@@ -72,23 +73,26 @@ struct bot_state {
   std::set<instrument> all_instrs;  // All available instruments
   std::map<instrument, instrument_info> instrs; // Active instruments
   std::deque<std::chrono::time_point<std::chrono::system_clock>> last_hour_trans_time; // Time of each transaction within last hour
+
+  // --- SETTINGS ---
+  // Order size in lots size for single transaction
+  size_t my_order_size{3};
+  // What volume to ignore cumulatively when calculating spread in level 2 bid/ask quotes; in multiples of my_lot_size
+  double vol_ignore_coeff{1.0};
+  // Consider candidates only if the volume is greater than this number
+  double min_volume{1.0};
+  // Consider candidates only if spread ratio (1 - ask/bid) is greater than this number
+  double min_spread{0.0002};
+  // Max number of instruments to consider as new candidates 
+  size_t num_candidates{10};
+  // New order speed limit
+  size_t max_new_orders_per_hour{50};
+  // ----------------
+
 private:
   lua::state l_;
   std::unique_ptr<qlua::api> q_;
 
-  // SETTINGS
-  // Lot size for single transaction
-  size_t my_lot_size_{3};
-  // What volume to ignore cumulatively when calculating spread in level 2 bid/ask quotes; in multiples of my_lot_size
-  double l2q_spread_ignore_{1.0};
-  // Consider candidates only if the volume is greater than this number
-  double min_volume_{1.0};
-  // Consider candidates only if spread ratio (1 - ask/bid) is greater than this number
-  double min_spread_{0.001};
-  // Max number of instruments to consider as new candidates 
-  size_t num_candidates_{10};
-  // New order speed limit
-  size_t max_new_orders_per_hour_{50};
 
   bot_state() {};
 

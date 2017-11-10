@@ -52,7 +52,7 @@ void bot_state::refresh_available_instrs(const std::string& class_name) {
     }
   } catch (std::exception e) {
     q_->message((std::string("l2q_spread_bot: failed to run getClassInfo for ") +
-                class_name + ", exception: " + e.what()).c_str());
+                 class_name + ", exception: " + e.what()).c_str());
   }
 }
 
@@ -82,65 +82,69 @@ void bot_state::request_bid_ask() const {
       q_->ParamRequest(class_name, sec_name, "VALTODAY");
     } catch (std::exception e) {
       q_->message((std::string("l2q_spread_bot: failed to cancel/request bid/ask parameter for ") +
-                  instr.first + "/" + instr.second + ", exception: " +e.what()).c_str());
+                   instr.first + "/" + instr.second + ", exception: " +e.what()).c_str());
     }
   }
 }
 
 void bot_state::choose_candidates() {
+  using param_entity = const lua::entity<lua::type_policy<qlua::table::current_trades_getParamEx>>&;
+
   std::vector<std::pair<instrument, double>> spreads;
-  
   for (const auto& instr : all_instrs) {
     try {
       bool instr_alive{false}; // Instrument has been traded today
-      using param_entity = const lua::entity<lua::type_policy<qlua::table::current_trades_getParamEx>>&;
+
       q_->getParamEx2(instr.first.c_str(), instr.second.c_str(), "VALTODAY",
                       [this, &instr_alive] (param_entity param) {
-                          if ((param().param_type() <= 2) && (param().param_value() > min_volume_))
-                         instr_alive = true;
-                     });
+                        if ((param().param_type() <= 2) && (param().param_value() > min_volume))
+                          instr_alive = true;
+                      });
       if (instr_alive) {
         double bid{0.0};
         double ask{0.0};
         q_->getParamEx2(instr.first.c_str(), instr.second.c_str(), "BID",
-                       [&bid] (param_entity param) {
-                         if ((param().param_type() <= 2)) {
-                           bid = param().param_value();
-                         }
-                       });
+                        [&bid] (param_entity param) {
+                          if ((param().param_type() <= 2)) {
+                            bid = param().param_value();
+                          }
+                        });
         q_->getParamEx2(instr.first.c_str(), instr.second.c_str(), "OFFER",
-                       [&ask] (param_entity param) {
-                         if ((param().param_type() <= 2)) {
-                           ask = param().param_value();
-                         }
-                       });
+                        [&ask] (param_entity param) {
+                          if ((param().param_type() <= 2)) {
+                            ask = param().param_value();
+                          }
+                        });
         if ((ask != 0.0) && (bid != 0.0)) {
           double spread_ratio = ask/bid - double{1.0};
           //          std::cout << "got ask " << ask << " bid " << bid << " spread " << spread_ratio << std::endl;
-          if (spread_ratio > min_spread_) spreads.push_back({instr, spread_ratio});
+          if (spread_ratio > min_spread) spreads.push_back({instr, spread_ratio});
         }
       }
     } catch (std::exception e) {
       q_->message((std::string("l2q_spread_bot: failed to evaluate spread ratio for ") +
-                  instr.first + "/" + instr.second + ", exception: " + e.what()).c_str());
+                   instr.first + "/" + instr.second + ", exception: " + e.what()).c_str());
     }
   }
   std::sort(spreads.begin(), spreads.end(), [] (const std::pair<instrument, double>& a,
                                                 const std::pair<instrument, double>& b) {
               return a.second > b.second;
             });
-  // Cycle through no more than num_candidates_ best instruments
-  for (size_t i = 0; (i < num_candidates_) && (i < spreads.size()); ++i) {
+  // Cycle through no more than num_candidates best instruments
+  for (size_t i = 0; (i < num_candidates) && (i < spreads.size()); ++i) {
     const auto& instr = spreads[i].first;
     auto found = instrs.find(instr);
     // If it's a new instrument or an old deactivated
-    if ((found == instrs.end()) || ((found != instrs.end()) && (found->second.spread == 0))) {
+    if ((found == instrs.end()) || ((found != instrs.end()) && (found->second.spread == 0) && (!found->second.l2q_subscribed))) {
       // Add it and initialize spread to info from on_param
       instrs[instr].spread = spreads[i].second;
+      q_->getParamEx2(instr.first.c_str(), instr.second.c_str(), "SEC_PRICE_STEP",
+                      [this, &instr] (param_entity param) {
+                        instrs[instr].sec_price_step = param().param_value();
+                      });
     }
   }
   act();
-  status.update();
 }
 
 void bot_state::remove_inactive_instruments() {
@@ -204,6 +208,7 @@ void bot_state::update_l2q_subscription(const instrument& instr, instrument_info
     if (!info.l2q_subscribed) {
       if (q_->Subscribe_Level_II_Quotes(instr.first.c_str(), instr.second.c_str())) {
         info.l2q_subscribed = true;
+        std::cout << "Subscribed " << instr.second << std::endl;
       } else {
         q_->message(std::string("Could not subscribe to " + instr.first + "/" + instr.second).c_str());
       }
@@ -212,16 +217,18 @@ void bot_state::update_l2q_subscription(const instrument& instr, instrument_info
 }
 
 void bot_state::act() {
+  std::cout << "Entry act()" << std::endl;
   remove_inactive_instruments();
   for (auto& ip : instrs) {
     auto& instr = ip.first;
     auto& info = ip.second;
     // Kill buy order if spread became to low
-    if ((info.buy_order.order_key != 0) && (info.spread < min_spread_)) {
+    if ((info.buy_order.order_key != 0) && (info.spread < min_spread)) {
       request_kill_order(instr, info, true);
     }
     update_l2q_subscription(instr, info);
   }
+  status.update();
 }
 
 void bot_state::on_order(unsigned int trans_id, unsigned int order_key, const unsigned int flags, const size_t qty, const double price) {
@@ -284,18 +291,78 @@ void bot_state::on_quote(const std::string& class_code, const std::string& sec_c
     auto& instr = found->first;
     auto& info = found->second;
     // Check that instrument is in dirty state (no unfinished requests)
-    if (((info.sell_order.new_trans_id != 0) && (info.sell_order.order_key == 0)) ||
-        ((info.buy_order.new_trans_id != 0) && (info.buy_order.order_key == 0))) {
-      // Instrument is in dirty state
-    } else {
-      // Instrument is not in dirty state
+    bool dirty{false};
+    // Sent sell order, but no order number yet -> dirty
+    if ((info.sell_order.new_trans_id != 0) && (info.sell_order.order_key == 0)) dirty = true;
+    // Sent buy order, but no order number yet -> dirty
+    if ((info.buy_order.new_trans_id != 0) && (info.buy_order.order_key == 0)) dirty = true;
+    if (!dirty) {
       try {
         q_->getQuoteLevel2(class_code.c_str(), sec_code.c_str(),
-                           [this] (const ::qlua::table::level2_quotes& quotes) {
+                           [this, &instr, &info] (const ::qlua::table::level2_quotes& quotes) {
                              auto bid = quotes.bid();
                              auto offer = quotes.offer();
-                             // TODO
+
+                             double acc{0.0};
+                             double my_bid_price{0.0};
+                             double my_ask_price{0.0};
+                             if (bid.size() > 0) {
+                               size_t i{0};
+                               for (i = 0; i < bid.size(); ++i) {
+                                 std::cout << "i " << i << std::endl;
+                                 const auto& rec = bid[bid.size() - 1 - i];
+                                 const double qty = atof(rec.quantity.c_str());
+                                 const double price = atof(rec.price.c_str());
+                                 auto new_acc = acc + qty * price;
+                                 if (info.buy_order.order_key != 0) {
+                                   // Don't count our own order
+                                   new_acc -= info.buy_order.qty * info.buy_order.price;
+                                 }
+                                 my_bid_price = atof(rec.price.c_str()) - info.sec_price_step;
+                                 std::cout << "  Instr " << instr.first << "/" << instr.second
+                                           << " qty " << qty << " price " << price << " new_acc " << new_acc << " my b p " << my_bid_price << std::endl;
+                                 if (new_acc > (my_order_size * my_bid_price * vol_ignore_coeff)) {
+                                   break;
+                                 } else {
+                                   acc = new_acc;
+                                 }
+                               }
+                             }
+                             std::cout << "My bid price " << my_bid_price << ::std::endl;
+
+                             acc = 0.0;
+                             if (offer.size() > 0) {
+                               size_t i{0};
+                               for (i = 0; i < offer.size(); ++i) {
+                                 const auto& rec = offer[i];
+                                 const double qty = atof(rec.quantity.c_str());
+                                 const double price = atof(rec.price.c_str());
+                                 auto new_acc = acc + qty * price;
+                                 if (info.sell_order.order_key != 0) {
+                                   // Don't count our own order
+                                   new_acc -= info.sell_order.qty * info.sell_order.price;
+                                 }
+                                 my_ask_price = atof(rec.price.c_str()) + info.sec_price_step;
+                                 if (new_acc > (my_order_size * my_ask_price * vol_ignore_coeff)) {
+                                   break;
+                                 } else {
+                                   acc = new_acc;
+                                 }
+                               }
+                             }
+
+                             if ((my_bid_price > 0) && (my_ask_price > 0)) {
+                               info.buy_order.price = my_bid_price;
+                               info.sell_order.price = my_ask_price;
+                               info.spread = my_ask_price/my_bid_price - 1.0;
+                               std::cout << "Set buy " << my_bid_price << " sell " << my_ask_price << " spread " << info.spread << std::endl;
+                             } else {
+                               info.buy_order.price = 0;
+                               info.sell_order.price = 0;
+                               info.spread = 0;
+                             }
                              act();
+                             status.update();
                            });
       } catch (std::exception e) {
         q_->message((std::string("l2q_spread_bot: error sending cancel buy transaction, exception: ") + e.what()).c_str());
