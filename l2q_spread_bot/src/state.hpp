@@ -45,6 +45,8 @@ struct bot_state {
   // Quik Junior does not really update info for most instruments.
   // Filter available instrs to contain only those known to be updated.
   void filter_available_instrs_quik_junior();
+  // Initialize client code and account
+  void init_client_info();
   // Request best bid/ask parameters for all_instrs_
   void request_bid_ask() const;
   // Select candidates with highest spread and trade volume > 0
@@ -60,7 +62,7 @@ struct bot_state {
   void act();
 
   // Handle on_order
-  void on_order(unsigned int trans_id, unsigned int order_key, unsigned int flags, const size_t lots, const double price);
+  void on_order(unsigned int trans_id, unsigned int order_key, unsigned int flags, const size_t qty, const size_t balance, const double price);
   // Handle level 2 quotes change
   void on_quote(const std::string& class_code, const std::string& sec_code);
 
@@ -70,10 +72,12 @@ struct bot_state {
   // Get new unique transaction id
   unsigned int next_trans_id();
 
+  std::string client_code; // Client code
+  std::map<std::string, std::string> class_to_accid; // Which account to use for trading a particular class
   std::set<instrument> all_instrs;  // All available instruments
   std::map<instrument, instrument_info> instrs; // Active instruments
   std::deque<std::chrono::time_point<std::chrono::system_clock>> last_hour_trans_time; // Time of each transaction within last hour
-
+  
   // --- SETTINGS ---
   // Order size in lots size for single transaction
   size_t my_order_size{3};
@@ -92,7 +96,6 @@ struct bot_state {
 private:
   lua::state l_;
   std::unique_ptr<qlua::api> q_;
-
 
   bot_state() {};
 

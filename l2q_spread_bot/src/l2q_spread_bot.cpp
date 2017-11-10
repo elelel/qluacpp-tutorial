@@ -26,9 +26,11 @@ void my_main(lua::state& l) {
     state.set_lua_state(l);
     state.refresh_available_instrs();
     state.filter_available_instrs_quik_junior(); // For trading on Quik Junior emulator, remove otherwise
+    state.init_client_info();
     state.request_bid_ask();
     status.set_lua_state(l);
     status.create_window();
+    status.update_title();
   }
 
   int candidates_timer{0};
@@ -63,7 +65,7 @@ std::tuple<int> OnStop(const lua::state& l,
 }
 
 void OnOrder(const lua::state& l,
-             ::lua::entity<::lua::type_policy<::qlua::table::order>> order) {
+             ::lua::entity<::lua::type_policy<::qlua::table::orders>> order) {
   {
     std::lock_guard<std::mutex> lock(mutex);
     state.set_lua_state(l);
@@ -71,6 +73,7 @@ void OnOrder(const lua::state& l,
                    order().order_num(),
                    order().flags(),
                    order().qty(),
+                   order().balance(),
                    order().price()); 
   }
 }
@@ -87,7 +90,7 @@ void OnQuote(const lua::state& l,
 
 LUACPP_STATIC_FUNCTION2(main, my_main)
 LUACPP_STATIC_FUNCTION3(OnStop, OnStop, int)
-LUACPP_STATIC_FUNCTION3(OnOrder, OnOrder, ::qlua::table::order)
+LUACPP_STATIC_FUNCTION3(OnOrder, OnOrder, ::qlua::table::orders)
 LUACPP_STATIC_FUNCTION4(OnQuote, OnQuote, const char*, const char*)
                         
 extern "C" {

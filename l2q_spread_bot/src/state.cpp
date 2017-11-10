@@ -69,6 +69,44 @@ void bot_state::filter_available_instrs_quik_junior() {
   }
 }
 
+void bot_state::init_client_info() {
+  try {
+    auto n = q_->getNumberOf<::qlua::table::client_codes>();
+    if (n < 1) {
+      q_->message("l2q_spread_bot: too few client codes!");
+    } else {
+      using client_code_entity = const lua::entity<lua::type_policy<qlua::table::client_codes>>&;
+      using trade_account_entity = const lua::entity<lua::type_policy<qlua::table::trade_accounts>>&;
+      q_->getItem<::qlua::table::client_codes>(0, [this] (client_code_entity c) {
+          client_code = c();
+        });
+      n = q_->getNumberOf<::qlua::table::trade_accounts>();
+      for (size_t i = 0; i < n; ++i) {
+        q_->getItem<::qlua::table::trade_accounts>(i, [this] (trade_account_entity e) {
+            auto trdaccid = e().trdaccid();
+            auto class_codes = e().class_codes();
+            std::string class_name;
+            while (class_codes[0] == '|') class_codes = class_codes.substr(1, class_codes.size() - 1);
+            std::cout << "class codes " << class_codes << std::endl;
+            size_t start = 0;
+            for (size_t k = 0; k < class_codes.size(); ++k) {
+              if (class_codes[k] == '|') {
+                if (k > start) {
+                  class_name = class_codes.substr(start, k - start);
+                  start = k + 1;
+                  class_to_accid[class_name] = trdaccid;
+                  std::cout << " set class " << class_name << " to " << trdaccid << std::endl;
+                }
+              }
+            }
+          });
+      }
+    }
+  } catch (std::exception e) {
+    q_->message((std::string("l2q_spread_bot: failed to get client info for, exception: ") + e.what()).c_str());
+  }
+}
+
 void bot_state::request_bid_ask() const {
   for (const auto& instr : all_instrs) {
     try {
@@ -217,7 +255,6 @@ void bot_state::update_l2q_subscription(const instrument& instr, instrument_info
 }
 
 void bot_state::act() {
-  std::cout << "Entry act()" << std::endl;
   remove_inactive_instruments();
   for (auto& ip : instrs) {
     auto& instr = ip.first;
@@ -226,12 +263,18 @@ void bot_state::act() {
     if ((info.buy_order.order_key != 0) && (info.spread < min_spread)) {
       request_kill_order(instr, info, true);
     }
+    // Do we need to place a new buy order?
+    if ((info.buy_order.order_key == 0) && (info.spread >= min_spread)) {
+      /*  auto buy_sell = q_->CalcBuySell(instr.first.c_str(), instr.second.c_str(),
+                                      client_code.c_str(), account.c_str(),
+                                      info.buy_order.price, true, false); */
+    }
     update_l2q_subscription(instr, info);
   }
   status.update();
 }
 
-void bot_state::on_order(unsigned int trans_id, unsigned int order_key, const unsigned int flags, const size_t qty, const double price) {
+void bot_state::on_order(unsigned int trans_id, unsigned int order_key, const unsigned int flags, const size_t qty, const size_t balance, const double price) {
   const instrument* instr{nullptr};
   instrument_info* info{nullptr};
   auto found = std::find_if(instrs.begin(), instrs.end(), [trans_id] (const std::pair<instrument, instrument_info>& ip) {
@@ -272,10 +315,10 @@ void bot_state::on_order(unsigned int trans_id, unsigned int order_key, const un
       if (flags & 2) { // Order executed
         if (flags & 4) {
           // Sold, decrement balance
-          info->bot_balance -= qty;
+          info->bot_balance -= qty - balance;
         } else {
           // Bought, increment balance
-          info->bot_balance += qty;
+          info->bot_balance += qty - balance;
         }
       }
       // Clear order info if executed/cancelled
@@ -309,7 +352,6 @@ void bot_state::on_quote(const std::string& class_code, const std::string& sec_c
                              if (bid.size() > 0) {
                                size_t i{0};
                                for (i = 0; i < bid.size(); ++i) {
-                                 std::cout << "i " << i << std::endl;
                                  const auto& rec = bid[bid.size() - 1 - i];
                                  const double qty = atof(rec.quantity.c_str());
                                  const double price = atof(rec.price.c_str());
@@ -319,8 +361,8 @@ void bot_state::on_quote(const std::string& class_code, const std::string& sec_c
                                    new_acc -= info.buy_order.qty * info.buy_order.price;
                                  }
                                  my_bid_price = atof(rec.price.c_str()) - info.sec_price_step;
-                                 std::cout << "  Instr " << instr.first << "/" << instr.second
-                                           << " qty " << qty << " price " << price << " new_acc " << new_acc << " my b p " << my_bid_price << std::endl;
+                                 //                                 std::cout << "  Instr " << instr.first << "/" << instr.second
+                                 //        << " qty " << qty << " price " << price << " new_acc " << new_acc << " my b p " << my_bid_price << std::endl;
                                  if (new_acc > (my_order_size * my_bid_price * vol_ignore_coeff)) {
                                    break;
                                  } else {
@@ -328,7 +370,7 @@ void bot_state::on_quote(const std::string& class_code, const std::string& sec_c
                                  }
                                }
                              }
-                             std::cout << "My bid price " << my_bid_price << ::std::endl;
+                             //                             std::cout << "My bid price " << my_bid_price << ::std::endl;
 
                              acc = 0.0;
                              if (offer.size() > 0) {
@@ -355,7 +397,7 @@ void bot_state::on_quote(const std::string& class_code, const std::string& sec_c
                                info.buy_order.price = my_bid_price;
                                info.sell_order.price = my_ask_price;
                                info.spread = my_ask_price/my_bid_price - 1.0;
-                               std::cout << "Set buy " << my_bid_price << " sell " << my_ask_price << " spread " << info.spread << std::endl;
+                               //                               std::cout << "Set buy " << my_bid_price << " sell " << my_ask_price << " spread " << info.spread << std::endl;
                              } else {
                                info.buy_order.price = 0;
                                info.sell_order.price = 0;

@@ -9,7 +9,8 @@
 
 struct bot_status {
   enum column {
-    CLASS = 1,
+    ACCID = 1,
+    CLASS,
     NAME,
     SEC_PRICE_STEP,
     BALANCE,
@@ -28,6 +29,8 @@ struct bot_status {
   void create_window();
   // Refresh status window
   void update();
+  // Refresh status window's title
+  void update_title();
 
   // Close status window
   void close();

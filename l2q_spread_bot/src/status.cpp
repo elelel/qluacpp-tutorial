@@ -19,6 +19,7 @@ void bot_status::create_window() {
       try {
         auto string_type = q_->constant<unsigned int>("QTABLE_STRING_TYPE");
         int rslt{1};
+        rslt = rslt & q_->AddColumn(table_id_, column::ACCID, "Account", true, string_type, 20);
         rslt = rslt & q_->AddColumn(table_id_, column::CLASS, "Class", true, string_type, 8);
         rslt = rslt & q_->AddColumn(table_id_, column::NAME, "Name", true, string_type, 8);
         rslt = rslt & q_->AddColumn(table_id_, column::SEC_PRICE_STEP, "Price step", true, string_type, 12);
@@ -31,7 +32,7 @@ void bot_status::create_window() {
         if (rslt == 1) {
           try {
             if (q_->CreateWindow(table_id_)) {
-              q_->SetWindowCaption(table_id_, "qluacpp l2q_spread_bot bot_status");
+              q_->SetWindowCaption(table_id_, "QLuaCPP spread bot example");
               window_created_ = true;
             }
           } catch (std::exception e) {
@@ -51,6 +52,10 @@ void bot_status::create_window() {
   }
 }
 
+void bot_status::update_title() {
+  q_->SetWindowCaption(table_id_, ("QLuaCPP spread bot example - client: " + state.client_code).c_str());
+}
+
 void bot_status::update() {
   if (window_created_) {
     try {
@@ -60,6 +65,7 @@ void bot_status::update() {
       for (const auto& ip : state.instrs) {
         n = q_->InsertRow(table_id_, -1);
         const auto& info = ip.second;
+        q_->SetCell(table_id_, n, column::ACCID, state.class_to_accid[ip.first.first].c_str(), 0);
         q_->SetCell(table_id_, n, column::CLASS, ip.first.first.c_str(), 0);
         q_->SetCell(table_id_, n, column::NAME, ip.first.second.c_str(), 0);
         if (info.l2q_subscribed) {
