@@ -28,27 +28,27 @@ void my_main(lua::state& l) {
     state.filter_available_instrs_quik_junior(); // For trading on Quik Junior emulator, remove otherwise
     state.init_client_info();
     state.request_bid_ask();
-    status.set_lua_state(l);
-    status.create_window();
-    status.update_title();
+
+    // Initialize status statics
+    bot_status status(l);
   }
 
   int candidates_timer{0};
-  while (true) {
+  while (!state.terminated) {
     // Emulate timers
-    // Check every minute if we have new instrument candidates
+    // Check periodically if we have new instrument candidates
     if (candidates_timer <= 0) {
       {
         std::lock_guard<std::mutex> lock(mutex);
         state.set_lua_state(l);
         state.choose_candidates();
       }
-      candidates_timer = 60; // Reset timer to fire again
+      candidates_timer = 10; // Reset timer to fire again
     }
     std::this_thread::sleep_for(1s);
     --candidates_timer;
   }
-  q.message("l2q_spread_bot: terminated");
+  std::this_thread::sleep_for(1s);
 }
 
 
@@ -56,10 +56,8 @@ std::tuple<int> OnStop(const lua::state& l,
                        ::lua::entity<::lua::type_policy<int>> signal) {
   {
     std::lock_guard<std::mutex> lock(mutex);
-    status.set_lua_state(l);
-    status.close();
     state.set_lua_state(l);
-    state.close();
+    state.on_stop();
   }
   return std::make_tuple(int(1));
 }

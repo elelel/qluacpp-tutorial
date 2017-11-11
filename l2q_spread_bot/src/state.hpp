@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <deque>
 #include <map>
@@ -7,6 +8,10 @@
 #include <set>
 
 #include <qluacpp/qlua>
+
+#include "status.hpp"
+
+struct bot_status;
 
 struct bot_state {
   // Type for unique instrument descriptor
@@ -17,7 +22,8 @@ struct bot_state {
     unsigned int order_key{0};
     unsigned int cancel_trans_id{0};
     unsigned int qty;
-    double price;
+    double estimated_price; // Estimated optimal price
+    double placed_price; // Price for acive order
   };
   
   struct instrument_info {
@@ -48,15 +54,19 @@ struct bot_state {
   // Initialize client code and account
   void init_client_info();
   // Request best bid/ask parameters for all_instrs_
-  void request_bid_ask() const;
+  void request_bid_ask();
   // Select candidates with highest spread and trade volume > 0
   void choose_candidates();
   // Remove instruments that are not active
   void remove_inactive_instruments();
+  // Send request to make a new buy order
+  void request_new_order(const instrument& instr, const instrument_info& info, order_info& order, const std::string& operation, const size_t qty);
   // Send request to kill existing order
-  void request_kill_order(const instrument& instr, instrument_info& info, const bool is_buy);
+  void request_kill_order(const instrument& instr, order_info& order);
   // Remove unneeded subscription, or make a new one if needed
   void update_l2q_subscription(const instrument& instr, instrument_info& info);
+  // Is it ok to make a new transaction within time period
+  bool trans_times_limits_ok();
   
   // Consider taking action: make transaction, remove transaction, update subscriptions, etc.
   void act();
@@ -65,18 +75,20 @@ struct bot_state {
   void on_order(unsigned int trans_id, unsigned int order_key, unsigned int flags, const size_t qty, const size_t balance, const double price);
   // Handle level 2 quotes change
   void on_quote(const std::string& class_code, const std::string& sec_code);
-
-  // Close the bot. Remove any pending transactions
-  void close();
+  // Handle on_stop event to deinitialize
+  void on_stop();
 
   // Get new unique transaction id
   unsigned int next_trans_id();
+  // Terminate bot with message
+  void terminate(const std::string& msg = "");
 
+  std::atomic<bool> terminated{false}; // The bot is not running
   std::string client_code; // Client code
   std::map<std::string, std::string> class_to_accid; // Which account to use for trading a particular class
   std::set<instrument> all_instrs;  // All available instruments
   std::map<instrument, instrument_info> instrs; // Active instruments
-  std::deque<std::chrono::time_point<std::chrono::system_clock>> last_hour_trans_time; // Time of each transaction within last hour
+  std::deque<std::chrono::time_point<std::chrono::steady_clock>> trans_times_within_hour; // Time of each transaction within last hour
   
   // --- SETTINGS ---
   // Order size in lots size for single transaction
@@ -86,7 +98,7 @@ struct bot_state {
   // Consider candidates only if the volume is greater than this number
   double min_volume{1.0};
   // Consider candidates only if spread ratio (1 - ask/bid) is greater than this number
-  double min_spread{0.0002};
+  double min_spread{0.001};
   // Max number of instruments to consider as new candidates 
   size_t num_candidates{10};
   // New order speed limit
@@ -96,6 +108,7 @@ struct bot_state {
 private:
   lua::state l_;
   std::unique_ptr<qlua::api> q_;
+  std::unique_ptr<bot_status> status_;
 
   bot_state() {};
 

@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iomanip>
+#include <sstream>
+
 #include <iostream>
 
 #include "status.hpp"
@@ -16,6 +19,7 @@ bot_state& bot_state::instance() {
 void bot_state::set_lua_state(const lua::state& l) {
   l_ = l;
   q_ = std::unique_ptr<qlua::api>(new qlua::api(l));
+  status_ = std::unique_ptr<bot_status>(new bot_status(l));
 }
 
 void bot_state::refresh_available_instrs() {
@@ -45,14 +49,13 @@ void bot_state::refresh_available_instrs(const std::string& class_name) {
     while (strlen(ptr) > 0) {
       if (*ptr == ',') {
         all_instrs.insert({class_name, sec_name});
-        std::cout << " Instr " << class_name << "/" << sec_name << std::endl;
         sec_name = "";
       } else sec_name += *ptr;
       ++ptr;
     }
   } catch (std::exception e) {
-    q_->message((std::string("l2q_spread_bot: failed to run getClassInfo for ") +
-                 class_name + ", exception: " + e.what()).c_str());
+    terminate("l2q_spread_bot: failed to run getClassInfo for " +
+              class_name + ", exception: " + e.what());
   }
 }
 
@@ -73,13 +76,14 @@ void bot_state::init_client_info() {
   try {
     auto n = q_->getNumberOf<::qlua::table::client_codes>();
     if (n < 1) {
-      q_->message("l2q_spread_bot: too few client codes!");
+      terminate("l2q_spread_bot: too few client codes!");
     } else {
       using client_code_entity = const lua::entity<lua::type_policy<qlua::table::client_codes>>&;
       using trade_account_entity = const lua::entity<lua::type_policy<qlua::table::trade_accounts>>&;
       q_->getItem<::qlua::table::client_codes>(0, [this] (client_code_entity c) {
           client_code = c();
         });
+      status_->update_title();
       n = q_->getNumberOf<::qlua::table::trade_accounts>();
       for (size_t i = 0; i < n; ++i) {
         q_->getItem<::qlua::table::trade_accounts>(i, [this] (trade_account_entity e) {
@@ -103,11 +107,11 @@ void bot_state::init_client_info() {
       }
     }
   } catch (std::exception e) {
-    q_->message((std::string("l2q_spread_bot: failed to get client info for, exception: ") + e.what()).c_str());
+    terminate("l2q_spread_bot: failed to get client info for, exception: " + std::string(e.what()));
   }
 }
 
-void bot_state::request_bid_ask() const {
+void bot_state::request_bid_ask() {
   for (const auto& instr : all_instrs) {
     try {
       const auto& class_name = instr.first.c_str();
@@ -119,8 +123,8 @@ void bot_state::request_bid_ask() const {
       q_->ParamRequest(class_name, sec_name, "OFFER");
       q_->ParamRequest(class_name, sec_name, "VALTODAY");
     } catch (std::exception e) {
-      q_->message((std::string("l2q_spread_bot: failed to cancel/request bid/ask parameter for ") +
-                   instr.first + "/" + instr.second + ", exception: " +e.what()).c_str());
+      terminate("l2q_spread_bot: failed to cancel/request bid/ask parameter for " +
+        instr.first + "/" + instr.second + ", exception: " +e.what());
     }
   }
 }
@@ -160,8 +164,8 @@ void bot_state::choose_candidates() {
         }
       }
     } catch (std::exception e) {
-      q_->message((std::string("l2q_spread_bot: failed to evaluate spread ratio for ") +
-                   instr.first + "/" + instr.second + ", exception: " + e.what()).c_str());
+      terminate("l2q_spread_bot: failed to evaluate spread ratio for " +
+                   instr.first + "/" + instr.second + ", exception: " + e.what());
     }
   }
   std::sort(spreads.begin(), spreads.end(), [] (const std::pair<instrument, double>& a,
@@ -203,30 +207,6 @@ void bot_state::remove_inactive_instruments() {
   for (const auto& r : removed) { instrs.erase(r); }
 }
 
-void bot_state::request_kill_order(const instrument& instr, instrument_info& info, const bool is_buy) {
-  order_info* order{nullptr};
-  if (is_buy) {
-    order = &info.buy_order;
-  } else {
-    order = &info.sell_order;
-  }
-  // Check there's an order and there's no previous cancel request pending
-  if ((order->order_key != 0) && (order->cancel_trans_id == 0)) {
-    try {
-      auto trans_id = next_trans_id();
-      std::map<std::string, std::string> trans = {{"CLASSCODE", instr.first},
-                                                  {"SECCODE", instr.second},
-                                                  {"TRANS_ID", std::to_string(trans_id)},
-                                                  {"ACTION", "KILLORDER"},
-                                                  {"ORDER_KEY", std::to_string(order->order_key)}};
-      q_->sendTransaction(trans);
-      order->cancel_trans_id = trans_id;
-    } catch (std::exception e) {
-      q_->message((std::string("l2q_spread_bot: error sending cancel buy transaction, exception: ") + e.what()).c_str());
-    }
-  }
-}
-
 void bot_state::update_l2q_subscription(const instrument& instr, instrument_info& info) {
   // Consider removing unneeded subscriptions
   if (info.l2q_subscribed &&
@@ -235,23 +215,124 @@ void bot_state::update_l2q_subscription(const instrument& instr, instrument_info
       (info.sell_order.new_trans_id == 0) &&
       (info.sell_order.order_key == 0) &&
       (info.bot_balance == 0) &&
-      (info.spread == 0.0)) {
-    if (q_->Unsubscribe_Level_II_Quotes(instr.first.c_str(), instr.second.c_str())) {
-      info.l2q_subscribed = false;
+      (info.spread < min_spread)) {
+    // Sometimes Quik for some unknown reason fails to unsubscribe. Let's check that it thinks we are subscribed first
+    if (q_->IsSubscribed_Level_II_Quotes(instr.first.c_str(), instr.second.c_str())) {
+      if (q_->Unsubscribe_Level_II_Quotes(instr.first.c_str(), instr.second.c_str())) {
+        info.l2q_subscribed = false;
+        info.spread = 0;
+        info.sell_order.estimated_price = 0;
+        info.buy_order.estimated_price = 0;
+      } else {
+        q_->message(("l2q_spread_bot: could not unsubscribe from " + instr.first + "/" + instr.second).c_str());
+      }
     } else {
-      q_->message(("Could not unsubscribe from " + instr.first + "/" + instr.second).c_str());
+      terminate("We are subscribed to " + instr.first + "/" + instr.second + ", but Quik doesn't think so!");
     }
   } else {
     // Consider adding subscriptions, if we are not subscribed yet
     if (!info.l2q_subscribed) {
       if (q_->Subscribe_Level_II_Quotes(instr.first.c_str(), instr.second.c_str())) {
         info.l2q_subscribed = true;
-        std::cout << "Subscribed " << instr.second << std::endl;
       } else {
-        q_->message(std::string("Could not subscribe to " + instr.first + "/" + instr.second).c_str());
+        terminate("Could not subscribe to " + instr.first + "/" + instr.second);
       }
     }
   }
+}
+
+void bot_state::request_new_order(const instrument& instr, const instrument_info& info,
+                                  order_info& order, const std::string& operation, const size_t qty) {
+  // Check protective time limits
+  try {
+    // Calculate decimal precision for the price
+    std::string price_step = std::to_string(info.sec_price_step);
+    auto pos = std::string::npos;
+    pos = price_step.find_last_of('.');
+    if (pos != std::string::npos) price_step = price_step.substr(pos + 1, price_step.size());
+    pos = price_step.find_last_of(',');
+    if (pos != std::string::npos) price_step = price_step.substr(pos + 1, price_step.size());
+    while ((price_step.size() > 0) && (price_step[price_step.size() - 1] == '0')) price_step.pop_back();
+    auto precision = price_step.size();
+
+    auto price = order.estimated_price;
+
+
+    std::string price_s;
+    if (precision > 0) {
+      std::stringstream price_ss;
+      price_ss << std::fixed;
+      price_ss << std::setprecision(precision);
+      price_ss << price;
+      price_s = price_ss.str();
+    } else {
+      price_s = std::to_string(int(price));
+    }
+    
+    auto buy_sell = q_->CalcBuySell(instr.first.c_str(), instr.second.c_str(),
+                                    client_code.c_str(), class_to_accid[instr.first].c_str(),
+                                    price, true, false);
+    const auto& max_qty = std::get<0>(buy_sell);
+    std::cout << " est price " << order.estimated_price
+              << " sec_price_step " << info.sec_price_step
+              << " precision " << precision
+              << " qty " << qty
+              << " max qty " << max_qty
+              << " comission " << std::get<1>(buy_sell)
+              << " price_s " << price_s     
+              << " price " << price << std::endl;
+    if ((qty > 0) && (qty <= max_qty) && (price != 0.0)) {
+      auto trans_id = next_trans_id();
+
+      std::map<std::string, std::string> trans = {
+        {"ACCOUNT", class_to_accid[instr.first].c_str()},
+        {"CLIENT_CODE", client_code.c_str()},
+        {"CLASSCODE", instr.first},
+        {"SECCODE", instr.second},
+        {"TRANS_ID", std::to_string(trans_id)},
+        {"QUANTITY", std::to_string(qty)},
+        {"OPERATION", operation.c_str()},
+        {"PRICE", price_s},
+        {"ACTION", "NEW_ORDER"}
+      };
+      q_->sendTransaction(trans);
+      order.new_trans_id = trans_id;
+      order.placed_price = price;
+      // Save transaction time for time limit
+      trans_times_within_hour.push_back(std::chrono::time_point<std::chrono::steady_clock>());
+    }
+  } catch (std::exception e) {
+    terminate("l2q_spread_bot: error calculating/sending buy, exception: " + std::string(e.what()));
+  }
+}
+
+void bot_state::request_kill_order(const instrument& instr, order_info& order) {
+  // Check there's an order and there's no previous cancel request pending
+  if ((order.order_key != 0) && (order.cancel_trans_id == 0)) {
+    try {
+      auto trans_id = next_trans_id();
+      std::map<std::string, std::string> trans = {
+        {"CLASSCODE", instr.first},
+        {"SECCODE", instr.second},
+        {"TRANS_ID", std::to_string(trans_id)},
+        {"ACTION", "KILL_ORDER"},
+        {"ORDER_KEY", std::to_string(order.order_key)}
+      };
+      q_->sendTransaction(trans);
+      order.cancel_trans_id = trans_id;
+      // Save transaction time for time limit
+      trans_times_within_hour.push_back(std::chrono::time_point<std::chrono::steady_clock>());
+    } catch (std::exception e) {
+      terminate("l2q_spread_bot: error sending cancel buy transaction, exception: " + std::string(e.what()));
+    }
+  }
+}
+  
+bool bot_state::trans_times_limits_ok() {
+  auto now = std::chrono::time_point<std::chrono::steady_clock>();
+  while (trans_times_within_hour.front() < now - std::chrono::hours{1})
+    trans_times_within_hour.pop_front();
+  return trans_times_within_hour.size() < 50;
 }
 
 void bot_state::act() {
@@ -259,49 +340,81 @@ void bot_state::act() {
   for (auto& ip : instrs) {
     auto& instr = ip.first;
     auto& info = ip.second;
-    // Kill buy order if spread became to low
-    if ((info.buy_order.order_key != 0) && (info.spread < min_spread)) {
-      request_kill_order(instr, info, true);
+    // If we have an active buy order
+    if ((info.buy_order.order_key != 0)) {
+      // Kill buy order if spread became low
+      if (info.spread < min_spread) {
+        request_kill_order(instr, info.buy_order);
+      }
     }
+    // If we have an active sell order
+    if ((info.sell_order.order_key != 0)) {
+      // Kill sell order if spread became low
+      if (info.spread < min_spread) {
+        request_kill_order(instr, info.sell_order);
+      }
+    }
+
     // Do we need to place a new buy order?
-    if ((info.buy_order.order_key == 0) && (info.spread >= min_spread)) {
-      /*  auto buy_sell = q_->CalcBuySell(instr.first.c_str(), instr.second.c_str(),
-                                      client_code.c_str(), account.c_str(),
-                                      info.buy_order.price, true, false); */
+    if ((info.buy_order.order_key == 0) &&
+        (info.spread >= min_spread) &&
+        (info.buy_order.estimated_price != 0.0) &&
+        (info.buy_order.new_trans_id == 0) && (info.buy_order.cancel_trans_id == 0)) {
+      const auto qty = my_order_size - info.bot_balance;
+      if (qty > 0) {
+        std::cout << "REQUESTING BUY " << instr.second << std::endl;
+        request_new_order(instr, info, info.buy_order, "B", qty);
+      }
     }
+    // Do we need to place a new sell order?
+    if ((info.sell_order.order_key == 0) &&
+        (info.spread >= min_spread) &&
+        (info.sell_order.estimated_price != 0.0) &&
+        (info.sell_order.new_trans_id == 0) && (info.sell_order.cancel_trans_id == 0)) {
+      const auto qty = info.bot_balance;
+      if ((qty > 0) && (trans_times_limits_ok())) {
+        request_new_order(instr, info, info.sell_order, "S", qty);
+      }
+    }
+    
     update_l2q_subscription(instr, info);
   }
-  status.update();
+  status_->update();
 }
 
 void bot_state::on_order(unsigned int trans_id, unsigned int order_key, const unsigned int flags, const size_t qty, const size_t balance, const double price) {
   const instrument* instr{nullptr};
   instrument_info* info{nullptr};
-  auto found = std::find_if(instrs.begin(), instrs.end(), [trans_id] (const std::pair<instrument, instrument_info>& ip) {
-      const auto& info = ip.second; 
-      return (info.buy_order.new_trans_id == trans_id)
-      || (info.sell_order.new_trans_id == trans_id)
-      || (info.buy_order.cancel_trans_id == trans_id)
-      || (info.sell_order.cancel_trans_id == trans_id);
-    });
-  if (found != instrs.end()) {
-    instr = &found->first;
-    info = &found->second;
-  } else {
-    // Could not find by trans_id, search by order_key if it's not 0
-    if (order_key != 0) {
-      found = std::find_if(instrs.begin(), instrs.end(), [order_key] (const std::pair<instrument, instrument_info>& ip) {
-          const auto& info = ip.second; 
-          return (info.buy_order.order_key == order_key) || (info.sell_order.order_key == order_key);
-        });
-      if (found != instrs.end()) {
-        instr = &found->first;
-        info = &found->second;
-      }
+
+  if (trans_id != 0) {
+    auto found = std::find_if(instrs.begin(), instrs.end(), [trans_id] (const std::pair<instrument, instrument_info>& ip) {
+        const auto& info = ip.second; 
+        return (info.buy_order.new_trans_id == trans_id)
+        || (info.sell_order.new_trans_id == trans_id)
+        || (info.buy_order.cancel_trans_id == trans_id)
+        || (info.sell_order.cancel_trans_id == trans_id);
+      });
+    if (found != instrs.end()) {
+      instr = &found->first;
+      info = &found->second;
     }
   }
+
+  if ((instr == nullptr) && (order_key != 0)) {
+    // Could not find by trans_id, search by order_key if it's not 0
+    auto found = std::find_if(instrs.begin(), instrs.end(), [order_key] (const std::pair<instrument, instrument_info>& ip) {
+        const auto& info = ip.second; 
+        return (info.buy_order.order_key == order_key) || (info.sell_order.order_key == order_key);
+      });
+    if (found != instrs.end()) {
+      instr = &found->first;
+      info = &found->second;
+    }
+  }
+    
   // If order was found in bot's orders
   if (instr != nullptr) {
+  std::cout << "found ORDER " << std::endl;
     order_info* order{nullptr};
     // Choose the right order object
     if (flags & 4) { // If it's a sell order
@@ -309,20 +422,26 @@ void bot_state::on_order(unsigned int trans_id, unsigned int order_key, const un
     } else { // It's a buy order
       order = &info->buy_order;
     }
-    if (flags & 1) { // Active order
-      order->order_key = order_key;
-    } else { // Inactive order
-      if (flags & 2) { // Order executed
-        if (flags & 4) {
-          // Sold, decrement balance
-          info->bot_balance -= qty - balance;
-        } else {
-          // Bought, increment balance
-          info->bot_balance += qty - balance;
-        }
+    if (!(flags & 1) && !(flags & 2)) { // Executed
+      if (flags & 4) {
+        std::cout << "ORDER sold" << std::endl;
+        // Sold, decrement balance
+        info->bot_balance -= qty - balance;
+      } else {
+        std::cout << "ORDER bought" << std::endl;
+        // Bought, increment balance
+        info->bot_balance += qty - balance;
       }
-      // Clear order info if executed/cancelled
       *order = {};
+    }
+    else if (flags & 2) { // Removed
+      std::cout << " clear " << std::endl;
+      *order = {};
+    }
+    else if (flags & 1) { // Active
+      order->order_key = order_key;
+    } else if (!(flags &1)) { // Inactive
+      order->order_key = 0;
     }
     act();
   }
@@ -358,9 +477,9 @@ void bot_state::on_quote(const std::string& class_code, const std::string& sec_c
                                  auto new_acc = acc + qty * price;
                                  if (info.buy_order.order_key != 0) {
                                    // Don't count our own order
-                                   new_acc -= info.buy_order.qty * info.buy_order.price;
+                                   new_acc -= info.buy_order.qty * info.buy_order.placed_price;
                                  }
-                                 my_bid_price = atof(rec.price.c_str()) - info.sec_price_step;
+                                 my_bid_price = atof(rec.price.c_str()) + info.sec_price_step;
                                  //                                 std::cout << "  Instr " << instr.first << "/" << instr.second
                                  //        << " qty " << qty << " price " << price << " new_acc " << new_acc << " my b p " << my_bid_price << std::endl;
                                  if (new_acc > (my_order_size * my_bid_price * vol_ignore_coeff)) {
@@ -382,9 +501,9 @@ void bot_state::on_quote(const std::string& class_code, const std::string& sec_c
                                  auto new_acc = acc + qty * price;
                                  if (info.sell_order.order_key != 0) {
                                    // Don't count our own order
-                                   new_acc -= info.sell_order.qty * info.sell_order.price;
+                                   new_acc -= info.sell_order.qty * info.sell_order.placed_price;
                                  }
-                                 my_ask_price = atof(rec.price.c_str()) + info.sec_price_step;
+                                 my_ask_price = atof(rec.price.c_str()) - info.sec_price_step;
                                  if (new_acc > (my_order_size * my_ask_price * vol_ignore_coeff)) {
                                    break;
                                  } else {
@@ -394,31 +513,40 @@ void bot_state::on_quote(const std::string& class_code, const std::string& sec_c
                              }
 
                              if ((my_bid_price > 0) && (my_ask_price > 0)) {
-                               info.buy_order.price = my_bid_price;
-                               info.sell_order.price = my_ask_price;
+                               info.buy_order.estimated_price = round(my_bid_price / info.sec_price_step) * info.sec_price_step;
+                               info.sell_order.estimated_price = round(my_ask_price / info.sec_price_step) * info.sec_price_step;
                                info.spread = my_ask_price/my_bid_price - 1.0;
                                //                               std::cout << "Set buy " << my_bid_price << " sell " << my_ask_price << " spread " << info.spread << std::endl;
                              } else {
-                               info.buy_order.price = 0;
-                               info.sell_order.price = 0;
+                               info.buy_order.estimated_price = 0;
+                               info.sell_order.estimated_price = 0;
                                info.spread = 0;
                              }
                              act();
-                             status.update();
+                             status_->update();
                            });
       } catch (std::exception e) {
-        q_->message((std::string("l2q_spread_bot: error sending cancel buy transaction, exception: ") + e.what()).c_str());
+        terminate("l2q_spread_bot: error sending cancel buy transaction, exception: " + std::string(e.what()));
       }
     }
   }
 }
 
-void bot_state::close() {
+void bot_state::on_stop() {
   for (auto& ip : instrs) {
     // Kill any pending orders
-    if (ip.second.buy_order.order_key != 0) request_kill_order(ip.first, ip.second, true);
-    if (ip.second.sell_order.order_key != 0) request_kill_order(ip.first, ip.second, false);
+    if (ip.second.buy_order.order_key != 0) request_kill_order(ip.first, ip.second.buy_order);
+    if (ip.second.sell_order.order_key != 0) request_kill_order(ip.first, ip.second.sell_order);
   }
+  status_->close();
+}
+
+void bot_state::terminate(const std::string& msg) {
+  if (msg.size() > 0) {
+    q_->message(msg.c_str());
+  }
+  terminated = true;
+  status_->close();
 }
 
 unsigned int bot_state::next_trans_id() {

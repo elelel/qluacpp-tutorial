@@ -15,16 +15,16 @@ struct bot_status {
     SEC_PRICE_STEP,
     BALANCE,
     SPREAD,
-    BUY_PRICE,
-    SELL_PRICE,
+    EST_BUY_PRICE,
+    EST_SELL_PRICE,
+    PLACED_BUY_PRICE,
+    PLACED_SELL_PRICE,
     BUY_ORDER,
     SELL_ORDER
   };
-  
-  static bot_status& instance();
 
-  // Set lua::state and qlua::api private members
-  void set_lua_state(const lua::state& l);
+  bot_status(const lua::state& l);
+
   // Create window
   void create_window();
   // Refresh status window
@@ -36,11 +36,8 @@ struct bot_status {
   void close();
 private:
   lua::state l_;
-  std::unique_ptr<qlua::api> q_;
-  int table_id_{0};
-  bool window_created_{false};
-
-  bot_status() {};
+  qlua::api q_;
+  static int table_id_;
 };
 
 extern bot_status& status;
