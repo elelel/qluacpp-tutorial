@@ -60,3 +60,6 @@ Event at Thu May 25 04:02:44 2017, written at Thu May 25 04:02:49 2017. All trad
 
 ![Draw candles realtime screencast](draw_candles_rt/doc/screencast.gif)
 
+ - [Торговый спредовый робот](l2q_spread_bot) ищет на рынке инструменты с максимальным спредом, работает в них по принципу стаканного спредового бота. 
+ 
+
