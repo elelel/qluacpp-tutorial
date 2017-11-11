@@ -62,4 +62,6 @@ Event at Thu May 25 04:02:44 2017, written at Thu May 25 04:02:49 2017. All trad
 
  - [Торговый спредовый робот](l2q_spread_bot) ищет на рынке инструменты с максимальным спредом, работает в них по принципу стаканного спредового бота. 
  
+ ![Spread bot screenshot](l2q_spread_bot/doc/spread_screen.png) 
+ 
 
