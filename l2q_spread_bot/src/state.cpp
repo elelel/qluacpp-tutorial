@@ -7,6 +7,7 @@
 
 #include <iostream>
 
+#include "sync.hpp"
 #include "status.hpp"
 
 bot_state& state = bot_state::instance();
@@ -91,7 +92,6 @@ void bot_state::init_client_info() {
             auto class_codes = e().class_codes();
             std::string class_name;
             while (class_codes[0] == '|') class_codes = class_codes.substr(1, class_codes.size() - 1);
-            std::cout << "class codes " << class_codes << std::endl;
             size_t start = 0;
             for (size_t k = 0; k < class_codes.size(); ++k) {
               if (class_codes[k] == '|') {
@@ -99,7 +99,6 @@ void bot_state::init_client_info() {
                   class_name = class_codes.substr(start, k - start);
                   start = k + 1;
                   class_to_accid[class_name] = trdaccid;
-                  std::cout << " set class " << class_name << " to " << trdaccid << std::endl;
                 }
               }
             }
@@ -136,7 +135,6 @@ void bot_state::choose_candidates() {
   for (const auto& instr : all_instrs) {
     try {
       bool instr_alive{false}; // Instrument has been traded today
-
       q_->getParamEx2(instr.first.c_str(), instr.second.c_str(), "VALTODAY",
                       [this, &instr_alive] (param_entity param) {
                         if ((param().param_type() <= 2) && (param().param_value() > min_volume))
@@ -379,7 +377,9 @@ void bot_state::act() {
     
     update_l2q_subscription(instr, info);
   }
+  std::cout << "update status" << std::endl;
   status_->update();
+  std::cout << "update status done" << std::endl;
 }
 
 void bot_state::on_order(unsigned int trans_id, unsigned int order_key, const unsigned int flags, const size_t qty, const size_t balance, const double price) {
@@ -414,7 +414,6 @@ void bot_state::on_order(unsigned int trans_id, unsigned int order_key, const un
     
   // If order was found in bot's orders
   if (instr != nullptr) {
-  std::cout << "found ORDER " << std::endl;
     order_info* order{nullptr};
     // Choose the right order object
     if (flags & 4) { // If it's a sell order
@@ -435,7 +434,6 @@ void bot_state::on_order(unsigned int trans_id, unsigned int order_key, const un
       *order = {};
     }
     else if (flags & 2) { // Removed
-      std::cout << " clear " << std::endl;
       *order = {};
     }
     else if (flags & 1) { // Active

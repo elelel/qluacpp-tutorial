@@ -3,6 +3,7 @@
 #include <qluacpp/qlua>
 
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include "state.hpp"

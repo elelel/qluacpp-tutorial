@@ -1,5 +1,9 @@
 #include "status.hpp"
 
+#include <thread>
+
+#include "sync.hpp"
+
 int bot_status::table_id_ = 0;
 
 bot_status::bot_status(const lua::state& l) :
@@ -57,6 +61,7 @@ void bot_status::update_title() {
 }
 
 void bot_status::update() {
+  lock_guard lock(mutex);
   if (table_id_ != 0) {
     try {
       auto def_color = q_.constant<int>("QTABLE_DEFAULT_COLOR");
