@@ -14,5 +14,5 @@ struct settings_record {
   // Max number of instruments to consider as new candidates 
   size_t num_candidates{10};
   // New order speed limit
-  size_t max_new_orders_per_hour{200};
+  size_t max_new_orders_per_hour{3600};
 };

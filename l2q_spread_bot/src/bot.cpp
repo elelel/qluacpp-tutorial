@@ -15,7 +15,6 @@ void bot::main(const lua::state& l) {
     std::unique_lock<std::mutex> lock(b.mutex_);
     b.cv_.wait(lock, [&b] () { return !b.cb_active_; });
     b.main_active_ = true;
-    b.qlua_main_ = std::unique_ptr<qlua::api>(new qlua::api(l));
     b.state_ = std::unique_ptr<state>(new state());
     b.status_ = std::unique_ptr<status>(new status(l));
     b.state_->set_lua_state(l);
@@ -58,11 +57,12 @@ void bot::main(const lua::state& l) {
                 b.cv_.notify_one();
               }
             }));
-      std::cout << "Calling detach" << std::endl;
-      try {
-        b.timer_.detach();
+        std::cout << "Calling detach" << std::endl;
+        try {
+          b.timer_.detach();
         } catch (std::exception e) {
-          b.terminate(*b.qlua_main_, "Failed to detach timer thread, exception: " + std::string(e.what()));
+          auto q = qlua::api(l);
+          b.terminate(q, "Failed to detach timer thread, exception: " + std::string(e.what()));
         }
       }
       b.main_active_ = false;

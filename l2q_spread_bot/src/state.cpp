@@ -322,6 +322,7 @@ void state::request_kill_order(const instrument& instr, order_info& order) {
 }
   
 bool state::trans_times_limits_ok() {
+  if (trans_times_within_hour.size() == 0) return true;
   auto now = std::chrono::time_point<std::chrono::steady_clock>();
   while (trans_times_within_hour.front() < now - std::chrono::hours{1})
     trans_times_within_hour.pop_front();
@@ -354,7 +355,7 @@ void state::act() {
         (info.buy_order.estimated_price != 0.0) &&
         (info.buy_order.new_trans_id == 0) && (info.buy_order.cancel_trans_id == 0)) {
       const auto qty = b_.settings().my_order_size - info.balance;
-      if (qty > 0) {
+      if ((qty > 0) && (trans_times_limits_ok())) {
         std::cout << "REQUESTING BUY " << instr.second << std::endl;
         request_new_order(instr, info, info.buy_order, "B", qty);
       }
@@ -365,7 +366,7 @@ void state::act() {
         (info.sell_order.estimated_price != 0.0) &&
         (info.sell_order.new_trans_id == 0) && (info.sell_order.cancel_trans_id == 0)) {
       const auto qty = info.balance;
-      if ((qty > 0) && (trans_times_limits_ok())) {
+      if (qty > 0) {
         request_new_order(instr, info, info.sell_order, "S", qty);
       }
     }

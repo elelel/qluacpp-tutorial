@@ -10,7 +10,6 @@
 
 struct bot {
   static bot& instance(); 
-  void set_main_lua_state(const lua::state& main_lua_state);
 
   // Callbacks for Qlua
   static void bot::main(const lua::state& l);
@@ -45,12 +44,8 @@ private:
   bool cb_active_{false};
   std::condition_variable cv_;
 
-  std::unique_ptr<qlua::api> qlua_main_;
   std::unique_ptr<state> state_;
   std::unique_ptr<status> status_;
-
-
-
 
   settings_record settings_;
 
