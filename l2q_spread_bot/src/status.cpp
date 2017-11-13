@@ -2,20 +2,33 @@
 
 #include <thread>
 
-#include "sync.hpp"
+#include "bot.hpp"
 
-int bot_status::table_id_ = 0;
-
-bot_status::bot_status(const lua::state& l) :
+status::status(const lua::state& l) :
   l_(l),
-  q_(qlua::api(l_)) {
+  q_(qlua::api(l_)),
+  b_(bot::instance()) {
   if (table_id_ == 0) {
     create_window();
     update_title();
   }
 }
 
-void bot_status::create_window() {
+status::~status() {
+  if (table_id_ != 0) {
+    try {
+      std::cout << "Calling destroy table" << std::endl;
+      if (!q_.DestroyTable(table_id_)) {
+        q_.message("Failed to DestroyTable, returned false");
+      }
+      table_id_ = 0;
+    } catch (std::exception e) {
+      q_.message((std::string("Failed to DestroyTable, exception: ") + e.what()).c_str());
+    }
+  }
+}
+
+void status::create_window() {
   try {
     table_id_ = q_.AllocTable();
     if (table_id_ != 0) {
@@ -40,90 +53,81 @@ void bot_status::create_window() {
               q_.SetWindowCaption(table_id_, "QLuaCPP spread bot example");
             }
           } catch (std::exception e) {
-            state.terminate("Failed to CreateWindow/SetWindowCaption, exception: " + std::string(e.what()));
+            bot::terminate(q_, "Failed to CreateWindow/SetWindowCaption, exception: " + std::string(e.what()));
           }
         } else {
-          state.terminate("Failed to AddColumn, returned false");
+          bot::terminate(q_, "Failed to AddColumn, returned false");
         }
       } catch (std::exception e) {
-        state.terminate("Failed to AddColumn, exception: " + std::string(e.what()));
+        bot::terminate(q_, "Failed to AddColumn, exception: " + std::string(e.what()));
       }
     } else {
-      state.terminate("Failed to AllocTable, returned 0 id");
+      bot::terminate(q_, "Failed to AllocTable, returned 0 id");
     }
   } catch (std::exception e) {
-    state.terminate("Failed to AllocTable, exception: " + std::string(e.what()));
+    bot::terminate(q_, "Failed to AllocTable, exception: " + std::string(e.what()));
   }
 }
 
-void bot_status::update_title() {
-  q_.SetWindowCaption(table_id_, ("QLuaCPP spread bot example - client: " + state.client_code).c_str());
+void status::update_title() {
+  q_.SetWindowCaption(table_id_, ("QLuaCPP spread bot example - client: " + b_.get_state()->client_code).c_str());
 }
 
-void bot_status::update() {
-  lock_guard lock(mutex);
+void status::update(const lua::state& l) {
   if (table_id_ != 0) {
+    qlua::api q(l);
     try {
-      auto def_color = q_.constant<int>("QTABLE_DEFAULT_COLOR");
-      q_.Clear(table_id_);
+      auto def_color = q.constant<int>("QTABLE_DEFAULT_COLOR");
+      std::cout << "Calling first UI QLUA func (Clear) in status::update. This will lock if called from incorrect thread." << std::endl;
+      q.Clear(table_id_);
+      std::cout << "First UI Qlua func returned" << std::endl;
       int n{-1};
-      for (const auto& ip : state.instrs) {
-        n = q_.InsertRow(table_id_, -1);
+      for (const auto& ip : b_.get_state()->instrs) {
+        n = q.InsertRow(table_id_, -1);
         const auto& info = ip.second;
-        q_.SetCell(table_id_, n, column::ACCID, state.class_to_accid[ip.first.first].c_str(), 0);
-        q_.SetCell(table_id_, n, column::CLASS, ip.first.first.c_str(), 0);
-        q_.SetCell(table_id_, n, column::NAME, ip.first.second.c_str(), 0);
+        q.SetCell(table_id_, n, column::ACCID, b_.get_state()->class_to_accid[ip.first.first].c_str(), 0);
+        q.SetCell(table_id_, n, column::CLASS, ip.first.first.c_str(), 0);
+        q.SetCell(table_id_, n, column::NAME, ip.first.second.c_str(), 0);
         if (info.l2q_subscribed) {
-          q_.SetColor(table_id_, n, column::CLASS, 0xffffff, def_color, def_color, def_color);
-          q_.SetColor(table_id_, n, column::NAME, 0xffffff, def_color, def_color, def_color);
+          q.SetColor(table_id_, n, column::CLASS, 0xffffff, def_color, def_color, def_color);
+          q.SetColor(table_id_, n, column::NAME, 0xffffff, def_color, def_color, def_color);
         } else {
-          q_.SetColor(table_id_, n, column::CLASS, 0xffffff, 0xcccccc, def_color, def_color);
-          q_.SetColor(table_id_, n, column::NAME, 0xffffff, 0xcccccc, def_color, def_color);
+          q.SetColor(table_id_, n, column::CLASS, 0xffffff, 0xcccccc, def_color, def_color);
+          q.SetColor(table_id_, n, column::NAME, 0xffffff, 0xcccccc, def_color, def_color);
         }
-        q_.SetCell(table_id_, n, column::SEC_PRICE_STEP, std::to_string(info.sec_price_step).c_str(), 0);
-        q_.SetCell(table_id_, n, column::BALANCE, std::to_string(info.bot_balance).c_str(), 0);
+        q.SetCell(table_id_, n, column::SEC_PRICE_STEP, std::to_string(info.sec_price_step).c_str(), 0);
+        q.SetCell(table_id_, n, column::BALANCE, std::to_string(info.balance).c_str(), 0);
         int buy_color{0xcccccc};
         if (info.buy_order.order_key != 0) buy_color = 0x00ff22; else
-          if ((info.buy_order.estimated_price != 0) && (info.spread > state.min_spread)) buy_color = 0x000000;
-        q_.SetCell(table_id_, n, column::EST_BUY_PRICE, std::to_string(info.buy_order.estimated_price).c_str(), 0);
-        q_.SetColor(table_id_, n, column::EST_BUY_PRICE, 0xffffff, buy_color, def_color, def_color);
+          if ((info.buy_order.estimated_price != 0) && (info.spread > b_.settings().min_spread)) buy_color = 0x000000;
+        q.SetCell(table_id_, n, column::EST_BUY_PRICE, std::to_string(info.buy_order.estimated_price).c_str(), 0);
+        q.SetColor(table_id_, n, column::EST_BUY_PRICE, 0xffffff, buy_color, def_color, def_color);
         int sell_color{0xcccccc};
         if (info.sell_order.order_key != 0) sell_color = 0x00ff22; else
-          if ((info.buy_order.estimated_price != 0) && (info.spread > state.min_spread)) sell_color = 0x000000;
-        q_.SetCell(table_id_, n, column::EST_SELL_PRICE, std::to_string(info.sell_order.estimated_price).c_str(), 0);
-        q_.SetColor(table_id_, n, column::EST_SELL_PRICE, 0xffffff, sell_color, def_color, def_color);
-        q_.SetCell(table_id_, n, column::SPREAD, std::to_string(info.spread).c_str(), 0);
+          if ((info.buy_order.estimated_price != 0) && (info.spread > b_.settings().min_spread)) sell_color = 0x000000;
+        q.SetCell(table_id_, n, column::EST_SELL_PRICE, std::to_string(info.sell_order.estimated_price).c_str(), 0);
+        q.SetColor(table_id_, n, column::EST_SELL_PRICE, 0xffffff, sell_color, def_color, def_color);
+        q.SetCell(table_id_, n, column::SPREAD, std::to_string(info.spread).c_str(), 0);
         
         if (info.buy_order.order_key != 0) {
-          q_.SetCell(table_id_, n, column::BUY_ORDER, std::to_string(info.buy_order.order_key).c_str(), 0);
-          q_.SetCell(table_id_, n, column::PLACED_BUY_PRICE, std::to_string(info.buy_order.placed_price).c_str(), 0);
+          q.SetCell(table_id_, n, column::BUY_ORDER, std::to_string(info.buy_order.order_key).c_str(), 0);
+          q.SetCell(table_id_, n, column::PLACED_BUY_PRICE, std::to_string(info.buy_order.placed_price).c_str(), 0);
         } else {
-          q_.SetCell(table_id_, n, column::BUY_ORDER, "", 0);
-          q_.SetCell(table_id_, n, column::PLACED_BUY_PRICE, "", 0);
+          q.SetCell(table_id_, n, column::BUY_ORDER, "", 0);
+          q.SetCell(table_id_, n, column::PLACED_BUY_PRICE, "", 0);
         }
         if (info.sell_order.order_key != 0) {
-          q_.SetCell(table_id_, n, column::SELL_ORDER, std::to_string(info.sell_order.order_key).c_str(), 0);
-          q_.SetCell(table_id_, n, column::PLACED_SELL_PRICE, std::to_string(info.sell_order.placed_price).c_str(), 0);
+          q.SetCell(table_id_, n, column::SELL_ORDER, std::to_string(info.sell_order.order_key).c_str(), 0);
+          q.SetCell(table_id_, n, column::PLACED_SELL_PRICE, std::to_string(info.sell_order.placed_price).c_str(), 0);
         } else {
-          q_.SetCell(table_id_, n, column::SELL_ORDER, "", 0);
-          q_.SetCell(table_id_, n, column::PLACED_SELL_PRICE, "", 0);
+          q.SetCell(table_id_, n, column::SELL_ORDER, "", 0);
+          q.SetCell(table_id_, n, column::PLACED_SELL_PRICE, "", 0);
         }
       }
+      std::cout << "Status update done " << std::endl;
     } catch (std::exception e) {
-      q_.message((std::string("Failed to update bot_status, exception: ") + e.what()).c_str());
+      q.message((std::string("Failed to update bot_status, exception: ") + e.what()).c_str());
     }
   }
 }
 
-void bot_status::close() {
-  if (table_id_ != 0) {
-    try {
-      if (!q_.DestroyTable(table_id_)) {
-        q_.message("Failed to DestroyTable, returned false");
-      }
-    } catch (std::exception e) {
-      q_.message((std::string("Failed to DestroyTable, exception: ") + e.what()).c_str());
-    }
-    table_id_ = 0;
-  }
-}

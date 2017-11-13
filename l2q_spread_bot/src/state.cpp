@@ -7,23 +7,19 @@
 
 #include <iostream>
 
-#include "sync.hpp"
+#include "bot.hpp"
 #include "status.hpp"
 
-bot_state& state = bot_state::instance();
-
-bot_state& bot_state::instance() {
-  static bot_state s;
-  return s;
+state::state() :
+  b_(bot::instance()) {
 }
 
-void bot_state::set_lua_state(const lua::state& l) {
+void state::set_lua_state(const lua::state& l) {
   l_ = l;
   q_ = std::unique_ptr<qlua::api>(new qlua::api(l));
-  status_ = std::unique_ptr<bot_status>(new bot_status(l));
 }
 
-void bot_state::refresh_available_instrs() {
+void state::refresh_available_instrs() {
   // Get string with all classes
   auto classes = q_->getClassesList();
   if (classes != nullptr) {
@@ -42,7 +38,7 @@ void bot_state::refresh_available_instrs() {
   }
 }
 
-void bot_state::refresh_available_instrs(const std::string& class_name) {
+void state::refresh_available_instrs(const std::string& class_name) {
   try {
     auto class_secs = q_->getClassSecurities(class_name.c_str());
     char* ptr = (char*)class_secs;
@@ -55,12 +51,12 @@ void bot_state::refresh_available_instrs(const std::string& class_name) {
       ++ptr;
     }
   } catch (std::exception e) {
-    terminate("l2q_spread_bot: failed to run getClassInfo for " +
+    bot::terminate(*q_, "l2q_spread_bot: failed to run getClassInfo for " +
               class_name + ", exception: " + e.what());
   }
 }
 
-void bot_state::filter_available_instrs_quik_junior() {
+void state::filter_available_instrs_quik_junior() {
   auto it = all_instrs.begin();
   auto end = all_instrs.end();
   std::vector<std::string> good_names{"SBER", "LKOH", "GMKN", "ROSN", "SBERP", "MGNT", "AFLT", "BANE", "BANEP", "MTLR"};
@@ -73,18 +69,17 @@ void bot_state::filter_available_instrs_quik_junior() {
   }
 }
 
-void bot_state::init_client_info() {
+void state::init_client_info() {
   try {
     auto n = q_->getNumberOf<::qlua::table::client_codes>();
     if (n < 1) {
-      terminate("l2q_spread_bot: too few client codes!");
+      bot::terminate(*q_, "l2q_spread_bot: too few client codes!");
     } else {
       using client_code_entity = const lua::entity<lua::type_policy<qlua::table::client_codes>>&;
       using trade_account_entity = const lua::entity<lua::type_policy<qlua::table::trade_accounts>>&;
       q_->getItem<::qlua::table::client_codes>(0, [this] (client_code_entity c) {
           client_code = c();
         });
-      status_->update_title();
       n = q_->getNumberOf<::qlua::table::trade_accounts>();
       for (size_t i = 0; i < n; ++i) {
         q_->getItem<::qlua::table::trade_accounts>(i, [this] (trade_account_entity e) {
@@ -106,11 +101,11 @@ void bot_state::init_client_info() {
       }
     }
   } catch (std::exception e) {
-    terminate("l2q_spread_bot: failed to get client info for, exception: " + std::string(e.what()));
+    bot::terminate(*q_, "l2q_spread_bot: failed to get client info for, exception: " + std::string(e.what()));
   }
 }
 
-void bot_state::request_bid_ask() {
+void state::request_bid_ask() {
   for (const auto& instr : all_instrs) {
     try {
       const auto& class_name = instr.first.c_str();
@@ -122,13 +117,13 @@ void bot_state::request_bid_ask() {
       q_->ParamRequest(class_name, sec_name, "OFFER");
       q_->ParamRequest(class_name, sec_name, "VALTODAY");
     } catch (std::exception e) {
-      terminate("l2q_spread_bot: failed to cancel/request bid/ask parameter for " +
+      bot::terminate(*q_, "l2q_spread_bot: failed to cancel/request bid/ask parameter for " +
         instr.first + "/" + instr.second + ", exception: " +e.what());
     }
   }
 }
 
-void bot_state::choose_candidates() {
+void state::choose_candidates() {
   using param_entity = const lua::entity<lua::type_policy<qlua::table::current_trades_getParamEx>>&;
 
   std::vector<std::pair<instrument, double>> spreads;
@@ -137,7 +132,7 @@ void bot_state::choose_candidates() {
       bool instr_alive{false}; // Instrument has been traded today
       q_->getParamEx2(instr.first.c_str(), instr.second.c_str(), "VALTODAY",
                       [this, &instr_alive] (param_entity param) {
-                        if ((param().param_type() <= 2) && (param().param_value() > min_volume))
+                        if ((param().param_type() <= 2) && (param().param_value() > b_.settings().min_volume))
                           instr_alive = true;
                       });
       if (instr_alive) {
@@ -158,11 +153,11 @@ void bot_state::choose_candidates() {
         if ((ask != 0.0) && (bid != 0.0)) {
           double spread_ratio = ask/bid - double{1.0};
           //          std::cout << "got ask " << ask << " bid " << bid << " spread " << spread_ratio << std::endl;
-          if (spread_ratio > min_spread) spreads.push_back({instr, spread_ratio});
+          if (spread_ratio > b_.settings().min_spread) spreads.push_back({instr, spread_ratio});
         }
       }
     } catch (std::exception e) {
-      terminate("l2q_spread_bot: failed to evaluate spread ratio for " +
+      bot::terminate(*q_, "l2q_spread_bot: failed to evaluate spread ratio for " +
                    instr.first + "/" + instr.second + ", exception: " + e.what());
     }
   }
@@ -171,7 +166,7 @@ void bot_state::choose_candidates() {
               return a.second > b.second;
             });
   // Cycle through no more than num_candidates best instruments
-  for (size_t i = 0; (i < num_candidates) && (i < spreads.size()); ++i) {
+  for (size_t i = 0; (i < b_.settings().num_candidates) && (i < spreads.size()); ++i) {
     const auto& instr = spreads[i].first;
     auto found = instrs.find(instr);
     // If it's a new instrument or an old deactivated
@@ -187,12 +182,12 @@ void bot_state::choose_candidates() {
   act();
 }
 
-void bot_state::remove_inactive_instruments() {
+void state::remove_inactive_instruments() {
   std::vector<instrument> removed;
   for (const auto& ip : instrs) {
     auto& instr = ip.first;
     auto& info = ip.second;
-    if ((info.bot_balance == 0) &&
+    if ((info.balance == 0) &&
         (info.buy_order.new_trans_id == 0) &&
         (info.buy_order.cancel_trans_id == 0) &&
         (info.sell_order.new_trans_id == 0) &&
@@ -205,15 +200,15 @@ void bot_state::remove_inactive_instruments() {
   for (const auto& r : removed) { instrs.erase(r); }
 }
 
-void bot_state::update_l2q_subscription(const instrument& instr, instrument_info& info) {
+void state::update_l2q_subscription(const instrument& instr, instrument_info& info) {
   // Consider removing unneeded subscriptions
   if (info.l2q_subscribed &&
       (info.buy_order.new_trans_id == 0) &&
       (info.buy_order.order_key == 0) &&
       (info.sell_order.new_trans_id == 0) &&
       (info.sell_order.order_key == 0) &&
-      (info.bot_balance == 0) &&
-      (info.spread < min_spread)) {
+      (info.balance == 0) &&
+      (info.spread < b_.settings().min_spread)) {
     // Sometimes Quik for some unknown reason fails to unsubscribe. Let's check that it thinks we are subscribed first
     if (q_->IsSubscribed_Level_II_Quotes(instr.first.c_str(), instr.second.c_str())) {
       if (q_->Unsubscribe_Level_II_Quotes(instr.first.c_str(), instr.second.c_str())) {
@@ -225,7 +220,7 @@ void bot_state::update_l2q_subscription(const instrument& instr, instrument_info
         q_->message(("l2q_spread_bot: could not unsubscribe from " + instr.first + "/" + instr.second).c_str());
       }
     } else {
-      terminate("We are subscribed to " + instr.first + "/" + instr.second + ", but Quik doesn't think so!");
+      bot::terminate(*q_, "We are subscribed to " + instr.first + "/" + instr.second + ", but Quik doesn't think so!");
     }
   } else {
     // Consider adding subscriptions, if we are not subscribed yet
@@ -233,13 +228,13 @@ void bot_state::update_l2q_subscription(const instrument& instr, instrument_info
       if (q_->Subscribe_Level_II_Quotes(instr.first.c_str(), instr.second.c_str())) {
         info.l2q_subscribed = true;
       } else {
-        terminate("Could not subscribe to " + instr.first + "/" + instr.second);
+        bot::terminate(*q_, "Could not subscribe to " + instr.first + "/" + instr.second);
       }
     }
   }
 }
 
-void bot_state::request_new_order(const instrument& instr, const instrument_info& info,
+void state::request_new_order(const instrument& instr, const instrument_info& info,
                                   order_info& order, const std::string& operation, const size_t qty) {
   // Check protective time limits
   try {
@@ -300,11 +295,11 @@ void bot_state::request_new_order(const instrument& instr, const instrument_info
       trans_times_within_hour.push_back(std::chrono::time_point<std::chrono::steady_clock>());
     }
   } catch (std::exception e) {
-    terminate("l2q_spread_bot: error calculating/sending buy, exception: " + std::string(e.what()));
+    bot::terminate(*q_, "l2q_spread_bot: error calculating/sending buy, exception: " + std::string(e.what()));
   }
 }
 
-void bot_state::request_kill_order(const instrument& instr, order_info& order) {
+void state::request_kill_order(const instrument& instr, order_info& order) {
   // Check there's an order and there's no previous cancel request pending
   if ((order.order_key != 0) && (order.cancel_trans_id == 0)) {
     try {
@@ -321,19 +316,19 @@ void bot_state::request_kill_order(const instrument& instr, order_info& order) {
       // Save transaction time for time limit
       trans_times_within_hour.push_back(std::chrono::time_point<std::chrono::steady_clock>());
     } catch (std::exception e) {
-      terminate("l2q_spread_bot: error sending cancel buy transaction, exception: " + std::string(e.what()));
+      bot::terminate(*q_, "l2q_spread_bot: error sending cancel buy transaction, exception: " + std::string(e.what()));
     }
   }
 }
   
-bool bot_state::trans_times_limits_ok() {
+bool state::trans_times_limits_ok() {
   auto now = std::chrono::time_point<std::chrono::steady_clock>();
   while (trans_times_within_hour.front() < now - std::chrono::hours{1})
     trans_times_within_hour.pop_front();
   return trans_times_within_hour.size() < 50;
 }
 
-void bot_state::act() {
+void state::act() {
   remove_inactive_instruments();
   for (auto& ip : instrs) {
     auto& instr = ip.first;
@@ -341,24 +336,24 @@ void bot_state::act() {
     // If we have an active buy order
     if ((info.buy_order.order_key != 0)) {
       // Kill buy order if spread became low
-      if (info.spread < min_spread) {
+      if (info.spread < b_.settings().min_spread) {
         request_kill_order(instr, info.buy_order);
       }
     }
     // If we have an active sell order
     if ((info.sell_order.order_key != 0)) {
       // Kill sell order if spread became low
-      if (info.spread < min_spread) {
+      if (info.spread < b_.settings().min_spread) {
         request_kill_order(instr, info.sell_order);
       }
     }
 
     // Do we need to place a new buy order?
     if ((info.buy_order.order_key == 0) &&
-        (info.spread >= min_spread) &&
+        (info.spread >= b_.settings().min_spread) &&
         (info.buy_order.estimated_price != 0.0) &&
         (info.buy_order.new_trans_id == 0) && (info.buy_order.cancel_trans_id == 0)) {
-      const auto qty = my_order_size - info.bot_balance;
+      const auto qty = b_.settings().my_order_size - info.balance;
       if (qty > 0) {
         std::cout << "REQUESTING BUY " << instr.second << std::endl;
         request_new_order(instr, info, info.buy_order, "B", qty);
@@ -366,10 +361,10 @@ void bot_state::act() {
     }
     // Do we need to place a new sell order?
     if ((info.sell_order.order_key == 0) &&
-        (info.spread >= min_spread) &&
+        (info.spread >= b_.settings().min_spread) &&
         (info.sell_order.estimated_price != 0.0) &&
         (info.sell_order.new_trans_id == 0) && (info.sell_order.cancel_trans_id == 0)) {
-      const auto qty = info.bot_balance;
+      const auto qty = info.balance;
       if ((qty > 0) && (trans_times_limits_ok())) {
         request_new_order(instr, info, info.sell_order, "S", qty);
       }
@@ -377,12 +372,10 @@ void bot_state::act() {
     
     update_l2q_subscription(instr, info);
   }
-  std::cout << "update status" << std::endl;
-  status_->update();
-  std::cout << "update status done" << std::endl;
+  b_.update_status = true;
 }
 
-void bot_state::on_order(unsigned int trans_id, unsigned int order_key, const unsigned int flags, const size_t qty, const size_t balance, const double price) {
+void state::on_order(unsigned int trans_id, unsigned int order_key, const unsigned int flags, const size_t qty, const size_t balance, const double price) {
   const instrument* instr{nullptr};
   instrument_info* info{nullptr};
 
@@ -425,11 +418,13 @@ void bot_state::on_order(unsigned int trans_id, unsigned int order_key, const un
       if (flags & 4) {
         std::cout << "ORDER sold" << std::endl;
         // Sold, decrement balance
-        info->bot_balance -= qty - balance;
+        info->balance -= qty - balance;
       } else {
         std::cout << "ORDER bought" << std::endl;
         // Bought, increment balance
-        info->bot_balance += qty - balance;
+        info->balance_price = (info->balance * info->balance_price + qty * price) /
+          (info->balance + qty);
+        info->balance += qty - balance;
       }
       *order = {};
     }
@@ -445,7 +440,7 @@ void bot_state::on_order(unsigned int trans_id, unsigned int order_key, const un
   }
 }
 
-void bot_state::on_quote(const std::string& class_code, const std::string& sec_code) {
+void state::on_quote(const std::string& class_code, const std::string& sec_code) {
   auto found = instrs.find(instrument{class_code, sec_code});
   if (found != instrs.end()) {
     auto& instr = found->first;
@@ -480,7 +475,7 @@ void bot_state::on_quote(const std::string& class_code, const std::string& sec_c
                                  my_bid_price = atof(rec.price.c_str()) + info.sec_price_step;
                                  //                                 std::cout << "  Instr " << instr.first << "/" << instr.second
                                  //        << " qty " << qty << " price " << price << " new_acc " << new_acc << " my b p " << my_bid_price << std::endl;
-                                 if (new_acc > (my_order_size * my_bid_price * vol_ignore_coeff)) {
+                                 if (new_acc > (b_.settings().my_order_size * my_bid_price * b_.settings().vol_ignore_coeff)) {
                                    break;
                                  } else {
                                    acc = new_acc;
@@ -502,7 +497,8 @@ void bot_state::on_quote(const std::string& class_code, const std::string& sec_c
                                    new_acc -= info.sell_order.qty * info.sell_order.placed_price;
                                  }
                                  my_ask_price = atof(rec.price.c_str()) - info.sec_price_step;
-                                 if (new_acc > (my_order_size * my_ask_price * vol_ignore_coeff)) {
+                                 if (new_acc >
+                                     (b_.settings().my_order_size * my_ask_price * b_.settings().vol_ignore_coeff)) {
                                    break;
                                  } else {
                                    acc = new_acc;
@@ -521,33 +517,24 @@ void bot_state::on_quote(const std::string& class_code, const std::string& sec_c
                                info.spread = 0;
                              }
                              act();
-                             status_->update();
+                             b_.update_status = true;
                            });
       } catch (std::exception e) {
-        terminate("l2q_spread_bot: error sending cancel buy transaction, exception: " + std::string(e.what()));
+        bot::terminate(*q_, "l2q_spread_bot: error sending cancel buy transaction, exception: " + std::string(e.what()));
       }
     }
   }
 }
 
-void bot_state::on_stop() {
+void state::on_stop() {
   for (auto& ip : instrs) {
     // Kill any pending orders
     if (ip.second.buy_order.order_key != 0) request_kill_order(ip.first, ip.second.buy_order);
     if (ip.second.sell_order.order_key != 0) request_kill_order(ip.first, ip.second.sell_order);
   }
-  status_->close();
 }
 
-void bot_state::terminate(const std::string& msg) {
-  if (msg.size() > 0) {
-    q_->message(msg.c_str());
-  }
-  terminated = true;
-  status_->close();
-}
-
-unsigned int bot_state::next_trans_id() {
+unsigned int state::next_trans_id() {
   ++next_trans_id_;
   return next_trans_id_;
 }

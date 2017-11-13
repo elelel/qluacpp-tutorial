@@ -8,7 +8,9 @@
 
 #include "state.hpp"
 
-struct bot_status {
+struct bot;
+
+struct status {
   enum column {
     ACCID = 1,
     CLASS,
@@ -24,21 +26,22 @@ struct bot_status {
     SELL_ORDER
   };
 
-  bot_status(const lua::state& l);
+  status(const lua::state& l);
+  ~status();
+
+  void set_lua_state(const lua::state& l);
 
   // Create window
   void create_window();
-  // Refresh status window
-  void update();
+  // Refresh status window, need lua::state to be passed from callback context
+  void update(const lua::state& l);
   // Refresh status window's title
   void update_title();
 
-  // Close status window
-  void close();
 private:
   lua::state l_;
   qlua::api q_;
-  static int table_id_;
+  int table_id_{0};
+  bot& b_;
 };
 
-extern bot_status& status;

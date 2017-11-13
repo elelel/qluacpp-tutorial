@@ -11,9 +11,9 @@
 
 #include "status.hpp"
 
-struct bot_status;
+struct bot;
 
-struct bot_state {
+struct state {
   // Type for unique instrument descriptor
   using instrument = std::pair<std::string, std::string>;
 
@@ -29,7 +29,8 @@ struct bot_state {
   struct instrument_info {
     double sec_price_step{0.0};
     // How many lots on balance are operated by this bot    
-    size_t bot_balance{0};
+    size_t balance{0};
+    double balance_price{0.0};
     // Bot's buy order
     order_info buy_order;
     // Bot's sell order
@@ -40,7 +41,7 @@ struct bot_state {
     double spread{0.0};
   };
 
-  static bot_state& instance();
+  state();
 
   // Set lua::state and qlua::api private members
   void set_lua_state(const lua::state& l);
@@ -80,40 +81,19 @@ struct bot_state {
 
   // Get new unique transaction id
   unsigned int next_trans_id();
-  // Terminate bot with message
-  void terminate(const std::string& msg = "");
 
-  std::atomic<bool> terminated{false}; // The bot is not running
   std::string client_code; // Client code
   std::map<std::string, std::string> class_to_accid; // Which account to use for trading a particular class
   std::set<instrument> all_instrs;  // All available instruments
   std::map<instrument, instrument_info> instrs; // Active instruments
   std::deque<std::chrono::time_point<std::chrono::steady_clock>> trans_times_within_hour; // Time of each transaction within last hour
   
-  // --- SETTINGS ---
-  // Order size in lots size for single transaction
-  size_t my_order_size{3};
-  // What volume to ignore cumulatively when calculating spread in level 2 bid/ask quotes; in multiples of my_lot_size
-  double vol_ignore_coeff{1.0};
-  // Consider candidates only if the volume is greater than this number
-  double min_volume{1.0};
-  // Consider candidates only if spread ratio (1 - ask/bid) is greater than this number
-  double min_spread{0.001};
-  // Max number of instruments to consider as new candidates 
-  size_t num_candidates{10};
-  // New order speed limit
-  size_t max_new_orders_per_hour{200};
-  // ----------------
 
 private:
   lua::state l_;
   std::unique_ptr<qlua::api> q_;
-  std::unique_ptr<bot_status> status_;
-
-  bot_state() {};
+  bot& b_;
 
   unsigned int next_trans_id_{0};
-
 };
 
-extern bot_state& state;

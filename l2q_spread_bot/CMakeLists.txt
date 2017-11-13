@@ -17,9 +17,9 @@ include_directories(
 
 set(SOURCES
   src/l2q_spread_bot.cpp
+  src/bot.cpp
   src/state.cpp
   src/status.cpp
-  src/sync.cpp
 )
 
 add_library(lualib_l2q_spread_bot SHARED ${SOURCES})
