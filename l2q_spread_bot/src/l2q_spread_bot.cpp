@@ -8,7 +8,7 @@
 #include <mutex>
 #include <thread>
 
-#include <qluacpp/qlua>
+#include <qluacpp/api>
 
 #include "bot.hpp"
 

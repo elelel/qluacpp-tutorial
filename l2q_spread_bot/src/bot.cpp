@@ -31,11 +31,13 @@ void bot::main(const lua::state& l) {
     b.main_active_ = true;
     std::cout << "Activated main" << std::endl;
     if (!b.terminated) {
+      std::cout << "Refreshing instruments" << std::endl;
       if (b.refresh_instruments) {
         b.state_->refresh_available_instrs();
         // For trading in Quik Junior emulator, remove otherwise
         b.state_->filter_available_instrs_quik_junior(); 
       }
+      std::cout << "Checking if periodic triggered" << std::endl;
       if (b.timer_triggered) {
         b.state_->choose_candidates();
         b.timer_triggered = false;
@@ -86,13 +88,13 @@ std::tuple<int> bot::on_stop(const lua::state& l,
   auto& b = bot::instance();
   std::unique_lock<std::mutex> lock(b.mutex_);
   b.cv_.wait(lock, [&b] () { return !b.main_active_; });
-  b.cb_active_= true;
+  b.cb_active_ = true;
   
   b.state_->set_lua_state(l);
   b.state_->on_stop();
   b.terminated = true;
 
-  b.cb_active_= false;
+  b.cb_active_ = false;
   lock.unlock();
   b.cv_.notify_one();
   return std::make_tuple(int(1));

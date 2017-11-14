@@ -4,6 +4,8 @@
 #include <mutex>
 #include <condition_variable>
 
+#include <qluacpp/api>
+
 #include "settings.hpp"
 #include "state.hpp"
 #include "status.hpp"

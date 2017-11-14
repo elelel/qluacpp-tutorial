@@ -7,7 +7,7 @@
 #include <mutex>
 #include <set>
 
-#include <qluacpp/qlua>
+#include <qluacpp/extended>
 
 #include "status.hpp"
 
@@ -43,7 +43,7 @@ struct state {
 
   state();
 
-  // Set lua::state and qlua::api private members
+  // Set lua::state and qlua::extended private members
   void set_lua_state(const lua::state& l);
   // Update all class name/security name pairs for all classes
   void refresh_available_instrs();
@@ -91,7 +91,7 @@ struct state {
 
 private:
   lua::state l_;
-  std::unique_ptr<qlua::api> q_;
+  std::unique_ptr<qlua::extended> q_;
   bot& b_;
 
   unsigned int next_trans_id_{0};

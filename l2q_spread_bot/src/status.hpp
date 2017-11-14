@@ -1,10 +1,10 @@
 #pragma once
 
-#include <qluacpp/qlua>
-
 #include <memory>
 #include <mutex>
 #include <vector>
+
+#include <qluacpp/extended>
 
 #include "state.hpp"
 
@@ -40,7 +40,7 @@ struct status {
 
 private:
   lua::state l_;
-  qlua::api q_;
+  qlua::extended q_;
   int table_id_{0};
   bot& b_;
 };

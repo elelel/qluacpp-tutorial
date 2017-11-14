@@ -6,7 +6,7 @@
 
 status::status(const lua::state& l) :
   l_(l),
-  q_(qlua::api(l_)),
+  q_(qlua::extended(l_)),
   b_(bot::instance()) {
   if (table_id_ == 0) {
     create_window();

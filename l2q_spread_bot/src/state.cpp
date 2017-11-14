@@ -16,7 +16,7 @@ state::state() :
 
 void state::set_lua_state(const lua::state& l) {
   l_ = l;
-  q_ = std::unique_ptr<qlua::api>(new qlua::api(l));
+  q_ = std::unique_ptr<qlua::extended>(new qlua::extended(l));
 }
 
 void state::refresh_available_instrs() {
@@ -40,7 +40,7 @@ void state::refresh_available_instrs() {
 
 void state::refresh_available_instrs(const std::string& class_name) {
   try {
-    auto class_secs = q_->getClassSecurities(class_name.c_str());
+    auto class_secs = q_->getClassSecurities(class_name);
     char* ptr = (char*)class_secs;
     std::string sec_name;
     while (strlen(ptr) > 0) {
@@ -130,7 +130,7 @@ void state::choose_candidates() {
   for (const auto& instr : all_instrs) {
     try {
       bool instr_alive{false}; // Instrument has been traded today
-      q_->getParamEx2(instr.first.c_str(), instr.second.c_str(), "VALTODAY",
+      q_->getParamEx2(instr.first, instr.second, "VALTODAY",
                       [this, &instr_alive] (param_entity param) {
                         if ((param().param_type() <= 2) && (param().param_value() > b_.settings().min_volume))
                           instr_alive = true;
@@ -138,13 +138,13 @@ void state::choose_candidates() {
       if (instr_alive) {
         double bid{0.0};
         double ask{0.0};
-        q_->getParamEx2(instr.first.c_str(), instr.second.c_str(), "BID",
+        q_->getParamEx2(instr.first, instr.second, "BID",
                         [&bid] (param_entity param) {
                           if ((param().param_type() <= 2)) {
                             bid = param().param_value();
                           }
                         });
-        q_->getParamEx2(instr.first.c_str(), instr.second.c_str(), "OFFER",
+        q_->getParamEx2(instr.first, instr.second, "OFFER",
                         [&ask] (param_entity param) {
                           if ((param().param_type() <= 2)) {
                             ask = param().param_value();
@@ -173,7 +173,7 @@ void state::choose_candidates() {
     if ((found == instrs.end()) || ((found != instrs.end()) && (found->second.spread == 0) && (!found->second.l2q_subscribed))) {
       // Add it and initialize spread to info from on_param
       instrs[instr].spread = spreads[i].second;
-      q_->getParamEx2(instr.first.c_str(), instr.second.c_str(), "SEC_PRICE_STEP",
+      q_->getParamEx2(instr.first, instr.second, "SEC_PRICE_STEP",
                       [this, &instr] (param_entity param) {
                         instrs[instr].sec_price_step = param().param_value();
                       });
@@ -210,8 +210,8 @@ void state::update_l2q_subscription(const instrument& instr, instrument_info& in
       (info.balance == 0) &&
       (info.spread < b_.settings().min_spread)) {
     // Sometimes Quik for some unknown reason fails to unsubscribe. Let's check that it thinks we are subscribed first
-    if (q_->IsSubscribed_Level_II_Quotes(instr.first.c_str(), instr.second.c_str())) {
-      if (q_->Unsubscribe_Level_II_Quotes(instr.first.c_str(), instr.second.c_str())) {
+    if (q_->IsSubscribed_Level_II_Quotes(instr.first, instr.second)) {
+      if (q_->Unsubscribe_Level_II_Quotes(instr.first, instr.second)) {
         info.l2q_subscribed = false;
         info.spread = 0;
         info.sell_order.estimated_price = 0;
@@ -223,7 +223,7 @@ void state::update_l2q_subscription(const instrument& instr, instrument_info& in
   } else {
     // Consider adding subscriptions, if we are not subscribed yet
     if (!info.l2q_subscribed) {
-      if (q_->Subscribe_Level_II_Quotes(instr.first.c_str(), instr.second.c_str())) {
+      if (q_->Subscribe_Level_II_Quotes(instr.first, instr.second)) {
         info.l2q_subscribed = true;
       } else {
         bot::terminate(*q_, "Could not subscribe to " + instr.first + "/" + instr.second);
@@ -260,8 +260,8 @@ void state::request_new_order(const instrument& instr, const instrument_info& in
       price_s = std::to_string(int(price));
     }
     
-    auto buy_sell = q_->CalcBuySell(instr.first.c_str(), instr.second.c_str(),
-                                    client_code.c_str(), class_to_accid[instr.first].c_str(),
+    auto buy_sell = q_->CalcBuySell(instr.first, instr.second,
+                                    client_code, class_to_accid[instr.first],
                                     price, true, false);
     const auto& max_qty = std::get<0>(buy_sell);
     std::cout << " est price " << order.estimated_price
@@ -276,13 +276,13 @@ void state::request_new_order(const instrument& instr, const instrument_info& in
       auto trans_id = next_trans_id();
 
       std::map<std::string, std::string> trans = {
-        {"ACCOUNT", class_to_accid[instr.first].c_str()},
-        {"CLIENT_CODE", client_code.c_str()},
+        {"ACCOUNT", class_to_accid[instr.first]},
+        {"CLIENT_CODE", client_code},
         {"CLASSCODE", instr.first},
         {"SECCODE", instr.second},
         {"TRANS_ID", std::to_string(trans_id)},
         {"QUANTITY", std::to_string(qty)},
-        {"OPERATION", operation.c_str()},
+        {"OPERATION", operation},
         {"PRICE", price_s},
         {"ACTION", "NEW_ORDER"}
       };
@@ -452,7 +452,7 @@ void state::on_quote(const std::string& class_code, const std::string& sec_code)
     if ((info.buy_order.new_trans_id != 0) && (info.buy_order.order_key == 0)) dirty = true;
     if (!dirty) {
       try {
-        q_->getQuoteLevel2(class_code.c_str(), sec_code.c_str(),
+        q_->getQuoteLevel2(class_code, sec_code,
                            [this, &instr, &info] (const ::qlua::table::level2_quotes& quotes) {
                              auto bid = quotes.bid();
                              auto offer = quotes.offer();
