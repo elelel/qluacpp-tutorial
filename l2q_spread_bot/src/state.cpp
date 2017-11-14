@@ -216,8 +216,6 @@ void state::update_l2q_subscription(const instrument& instr, instrument_info& in
         info.spread = 0;
         info.sell_order.estimated_price = 0;
         info.buy_order.estimated_price = 0;
-      } else {
-        q_->message(("l2q_spread_bot: could not unsubscribe from " + instr.first + "/" + instr.second).c_str());
       }
     } else {
       bot::terminate(*q_, "We are subscribed to " + instr.first + "/" + instr.second + ", but Quik doesn't think so!");
