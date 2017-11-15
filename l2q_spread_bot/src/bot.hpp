@@ -14,7 +14,8 @@ struct bot {
   static bot& instance(); 
 
   // Callbacks for Qlua
-  static void bot::main(const lua::state& l);
+  static void on_init(const lua::state& l, ::lua::entity<::lua::type_policy<const char*>>);
+  static void main(const lua::state& l);
   static std::tuple<int> on_stop(const lua::state& l,
                                  ::lua::entity<::lua::type_policy<int>> signal);
   static void on_connected(const lua::state& l,
@@ -25,6 +26,14 @@ struct bot {
                        ::lua::entity<::lua::type_policy<const char*>> sec_class,
                        ::lua::entity<::lua::type_policy<const char*>> sec_code);
 
+  // Thread unsafe things to call on main thread
+  static void thread_unsafe(const lua::state& l);
+  // Thread safe wrapper for thread_unsafe
+  static std::tuple<bool> thread_safe(const lua::state& l,
+                                      ::lua::entity<::lua::type_policy<const int>>,
+                                      ::lua::entity<::lua::type_policy<const int>>);
+
+  
   // Terminate with message
   static void terminate(const qlua::api& q,
                         const std::string& msg = "");
@@ -35,15 +44,13 @@ struct bot {
 
   // Signalling flags
   std::atomic<bool> terminated{false}; // The bot is not running, stop main()
-  std::atomic<bool> main_wakeup{true}; // Wakeup main() function
   std::atomic<bool> update_status{true}; // Refresh status table in next callback
-  std::atomic<bool> timer_triggered{true}; // It's time to refresh candidates
   std::atomic<bool> refresh_instruments{true}; // Refresh classes/securities
+  std::atomic<bool> select_candidates{true}; // Select instruments with good spread from global trade table
 private:
   std::mutex mutex_;
 
   bool main_active_{false};
-  bool cb_active_{false};
   std::condition_variable cv_;
 
   std::unique_ptr<state> state_;

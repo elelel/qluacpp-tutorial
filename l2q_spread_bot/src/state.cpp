@@ -21,7 +21,9 @@ void state::set_lua_state(const lua::state& l) {
 
 void state::refresh_available_instrs() {
   // Get string with all classes
+  std::cout << "Geting cleasses list" << std::endl;
   auto classes = q_->getClassesList();
+  std::cout << "Geting cleasses list done" << std::endl;
   if (classes != nullptr) {
     std::string class_name;
     std::vector<std::string> all_classes;
