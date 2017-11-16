@@ -8,19 +8,28 @@ bot& bot::instance() {
   return b;
 }
 
-void bot::on_init(const lua::state& l, ::lua::entity<::lua::type_policy<const char*>>) {
-}
-
 void bot::main(const lua::state& l) {
+  std::cout << "main entry" << std::endl;
   auto& b = bot::instance();
+  // Reinitialize flags
+  b.terminated = false;
+  b.update_status = true;
+  b.refresh_instruments = true;
+  b.select_candidates = true;
+  b.main_stopped = false;
 
-  b.main_active_ = true;
+  std::cout << "setting lua states" << std::endl;
   b.state_ = std::unique_ptr<state>(new state());
   b.state_->set_lua_state(l);
-  b.status_ = std::unique_ptr<status>(new status(l));
+  b.status_ = std::unique_ptr<status>(new status());
+  b.status_->set_lua_state(l);
+  std::cout << "init client info" << std::endl;
   b.state_->init_client_info();
+  std::cout << "request bid ask" << std::endl;
   b.state_->request_bid_ask();
+  std::cout << "update title" << std::endl;
   b.status_->update_title();
+  std::cout << "starting timer" << std::endl;
   // Start timer loop
   b.timer_ = std::move(std::thread([&b] () {
         for (size_t counter = 0; !b.terminated; counter += 100) {
@@ -41,40 +50,43 @@ void bot::main(const lua::state& l) {
 
   int k{0};
   while (true) {
-    std::cout << "Main locking" << std::endl;
-    //    std::unique_lock<std::mutex> lock(b.mutex_);
+    std::unique_lock<std::mutex> lock(b.mutex_);
     std::cout << "Main waiting " <<
       b.refresh_instruments << " " <<
       b.select_candidates << " " <<
       b.update_status << " " <<
       b.terminated << " " << std::endl;
-    /*    b.cv_.wait(lock, [&b] () {
+    b.cv_.wait(lock, [&b] () {
         return b.refresh_instruments ||
           b.select_candidates ||
           b.update_status ||
           b.terminated; 
-          });*/
+      });
     std::cout << "Woke up main"  << std::endl;
 
     qlua::extended q(l);
     std::cout << "Calling thread safe" << std::endl;
     try {
-      q.quik_thread_safe(l, "thread_safe");
+      q.thread_safe_exec(l, "l2q_spread_bot_sync_object", "thread_safe_main");
     } catch (std::exception e) {
       b.terminate(q, "Failed to call thread safely, exception: " + std::string(e.what()));
-    }
-    if (b.terminated) {
-      std::cout << "Main terminating" << std::endl;
-      break;
     }
     b.refresh_instruments = false;
     b.select_candidates = false;
     b.update_status = false;
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    if (b.terminated) {
+      std::cout << "Main terminating" << std::endl;
+      b.timer_ = std::move(std::thread());
+      b.state_ = nullptr;
+      break;
+    }
   }
+
+  b.main_stopped = true;
+  b.stop_cv_.notify_one();
 }
 
-void bot::thread_unsafe(const lua::state& l) {
+void bot::thread_unsafe_main(const lua::state& l) {
   auto &b = bot::instance();
   b.state_->set_lua_state(l);
   if (b.refresh_instruments) {
@@ -91,33 +103,42 @@ void bot::thread_unsafe(const lua::state& l) {
   
   if (b.update_status) {
     std::cout << "Updating status" << std::endl;
-    b.status_->update(l);
+    b.status_->set_lua_state(l);
+    b.status_->update();
   }
-
 }
 
-std::tuple<bool> bot::thread_safe(const lua::state& l,
-                                  ::lua::entity<::lua::type_policy<const int>>,
-                                  ::lua::entity<::lua::type_policy<const int>>) {
-  std::cout << "Thread safe" << std::endl;
-  thread_unsafe(l);
-  std::cout << "Thread safe end" << std::endl;
+std::tuple<bool> bot::thread_safe_main(const lua::state& l,
+                                       ::lua::entity<::lua::type_policy<const int>>,
+                                       ::lua::entity<::lua::type_policy<const int>>) {
+  thread_unsafe_main(l);
   return std::make_tuple(bool{true});
 }
+
+/*
+std::tuple<bool> bot::thread_safe_cv_notify(const lua::state& l,
+                                            ::lua::entity<::lua::type_policy<const int>>,
+                                            ::lua::entity<::lua::type_policy<const int>>) {
+  auto& b = bot::instance();
+  b.cv_.notify_one();
+  return std::make_tuple(bool{true});
+  }*/
 
 std::tuple<int> bot::on_stop(const lua::state& l,
                              ::lua::entity<::lua::type_policy<int>> signal) {
   std::cout << "on stop " << std::endl;
   auto& b = bot::instance();
-  std::cout << "on stop 2 " << std::endl;
   b.state_->set_lua_state(l);
-  std::cout << "on stop 3 " << std::endl;
   b.state_->on_stop();
-  std::cout << "on stop 4 " << std::endl;
+  b.status_->set_lua_state(l);
+  b.status_ = nullptr;
   b.terminated = true;
-  std::cout << "on stop 5 " << std::endl;
   b.cv_.notify_one();
-  std::cout << "on stop 6 " << std::endl;
+  std::unique_lock<std::mutex> lock(b.stop_mutex_);
+  std::cout << "Waiting for main to stop" << std::endl;
+  b.stop_cv_.wait(lock, [&b] () { return b.main_stopped == true; });
+  std::cout << "Main stopped" << std::endl;
+  lock.unlock();
   return std::make_tuple(int(1));
 }
 
@@ -155,13 +176,13 @@ void bot::on_quote(const lua::state& l,
   auto& b = bot::instance();
   b.state_->set_lua_state(l);
   b.state_->on_quote(std::string(sec_class()), std::string(sec_code()));
+  std::cout << "OnQuote requesting update status" << std::endl;
   b.update_status = true;
   b.cv_.notify_one();
   std::cout << "OnQuote done" << std::endl;
 }
 
 void bot::terminate(const qlua::api& q, const std::string& msg) {
-  std::cout << "terminate called " << std::endl;
   if (msg.size() > 0) {
     q.message(msg.c_str());
   }

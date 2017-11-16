@@ -21,9 +21,7 @@ void state::set_lua_state(const lua::state& l) {
 
 void state::refresh_available_instrs() {
   // Get string with all classes
-  std::cout << "Geting cleasses list" << std::endl;
   auto classes = q_->getClassesList();
-  std::cout << "Geting cleasses list done" << std::endl;
   if (classes != nullptr) {
     std::string class_name;
     std::vector<std::string> all_classes;
@@ -154,7 +152,6 @@ void state::choose_candidates() {
                         });
         if ((ask != 0.0) && (bid != 0.0)) {
           double spread_ratio = ask/bid - double{1.0};
-          //          std::cout << "got ask " << ask << " bid " << bid << " spread " << spread_ratio << std::endl;
           if (spread_ratio > b_.settings().min_spread) spreads.push_back({instr, spread_ratio});
         }
       }
@@ -266,14 +263,14 @@ void state::request_new_order(const instrument& instr, const instrument_info& in
                                     client_code, class_to_accid[instr.first],
                                     price, true, false);
     const auto& max_qty = std::get<0>(buy_sell);
-    std::cout << " est price " << order.estimated_price
+    /*    std::cout << " est price " << order.estimated_price
               << " sec_price_step " << info.sec_price_step
               << " precision " << precision
               << " qty " << qty
               << " max qty " << max_qty
               << " comission " << std::get<1>(buy_sell)
               << " price_s " << price_s     
-              << " price " << price << std::endl;
+              << " price " << price << std::endl; */
     if ((qty > 0) && (qty <= max_qty) && (price != 0.0)) {
       auto trans_id = next_trans_id();
 
@@ -356,7 +353,6 @@ void state::act() {
         (info.buy_order.new_trans_id == 0) && (info.buy_order.cancel_trans_id == 0)) {
       const auto qty = b_.settings().my_order_size - info.balance;
       if ((qty > 0) && (trans_times_limits_ok())) {
-        std::cout << "REQUESTING BUY " << instr.second << std::endl;
         request_new_order(instr, info, info.buy_order, "B", qty);
       }
     }
@@ -417,11 +413,9 @@ void state::on_order(unsigned int trans_id, unsigned int order_key, const unsign
     }
     if (!(flags & 1) && !(flags & 2)) { // Executed
       if (flags & 4) {
-        std::cout << "ORDER sold" << std::endl;
         // Sold, decrement balance
         info->balance -= qty - balance;
       } else {
-        std::cout << "ORDER bought" << std::endl;
         // Bought, increment balance
         info->balance_price = (info->balance * info->balance_price + qty * price) /
           (info->balance + qty);
@@ -518,7 +512,6 @@ void state::on_quote(const std::string& class_code, const std::string& sec_code)
                                info.spread = 0;
                              }
                              act();
-                             b_.update_status = true;
                            });
       } catch (std::exception e) {
         bot::terminate(*q_, "l2q_spread_bot: error sending cancel buy transaction, exception: " + std::string(e.what()));

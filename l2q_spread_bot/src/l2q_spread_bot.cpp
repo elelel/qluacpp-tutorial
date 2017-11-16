@@ -16,9 +16,8 @@ static struct luaL_reg ls_lib[] = {
   { NULL, NULL }
 };
 
-LUACPP_STATIC_FUNCTION3(OnInit, bot::on_init, const char*)
 LUACPP_STATIC_FUNCTION2(main, bot::main)
-LUACPP_STATIC_FUNCTION4(thread_safe, bot::thread_safe, const int, const int)
+LUACPP_STATIC_FUNCTION4(thread_safe_main, bot::thread_safe_main, const int, const int)
 LUACPP_STATIC_FUNCTION3(OnStop, bot::on_stop, int)
 LUACPP_STATIC_FUNCTION3(OnOrder, bot::on_order, ::qlua::table::orders)
 LUACPP_STATIC_FUNCTION4(OnQuote, bot::on_quote, const char*, const char*)
@@ -27,9 +26,8 @@ extern "C" {
   LUALIB_API int luaopen_lualib_l2q_spread_bot(lua_State *L) {
     lua::state l(L);
 
-    ::lua::function::OnInit().register_in_lua(l, bot::on_init);
     ::lua::function::main().register_in_lua(l, bot::main);
-    ::lua::function::thread_safe().register_in_lua(l, bot::thread_safe);
+    ::lua::function::thread_safe_main().register_in_lua(l, bot::thread_safe_main);
     ::lua::function::OnStop().register_in_lua(l, bot::on_stop);
     ::lua::function::OnOrder().register_in_lua(l, bot::on_order);
     ::lua::function::OnQuote().register_in_lua(l, bot::on_quote);

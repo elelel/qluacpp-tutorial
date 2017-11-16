@@ -26,7 +26,7 @@ struct status {
     SELL_ORDER
   };
 
-  status(const lua::state& l);
+  status();
   ~status();
 
   void set_lua_state(const lua::state& l);
@@ -34,13 +34,13 @@ struct status {
   // Create window
   void create_window();
   // Refresh status window, need lua::state to be passed from callback context
-  void update(const lua::state& l);
+  void update();
   // Refresh status window's title
   void update_title();
 
 private:
   lua::state l_;
-  qlua::extended q_;
+  std::unique_ptr<qlua::extended> q_;
   int table_id_{0};
   bot& b_;
 };

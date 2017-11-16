@@ -27,13 +27,11 @@ struct bot {
                        ::lua::entity<::lua::type_policy<const char*>> sec_code);
 
   // Thread unsafe things to call on main thread
-  static void thread_unsafe(const lua::state& l);
+  static void thread_unsafe_main(const lua::state& l);
   // Thread safe wrapper for thread_unsafe
-  static std::tuple<bool> thread_safe(const lua::state& l,
-                                      ::lua::entity<::lua::type_policy<const int>>,
-                                      ::lua::entity<::lua::type_policy<const int>>);
-
-  
+  static std::tuple<bool> thread_safe_main(const lua::state& l,
+                                           ::lua::entity<::lua::type_policy<const int>>,
+                                           ::lua::entity<::lua::type_policy<const int>>);
   // Terminate with message
   static void terminate(const qlua::api& q,
                         const std::string& msg = "");
@@ -47,16 +45,17 @@ struct bot {
   std::atomic<bool> update_status{true}; // Refresh status table in next callback
   std::atomic<bool> refresh_instruments{true}; // Refresh classes/securities
   std::atomic<bool> select_candidates{true}; // Select instruments with good spread from global trade table
+  std::atomic<bool> main_stopped{false};
 private:
-  std::mutex mutex_;
-
-  bool main_active_{false};
-  std::condition_variable cv_;
-
+  settings_record settings_;
   std::unique_ptr<state> state_;
   std::unique_ptr<status> status_;
 
-  settings_record settings_;
+  std::mutex mutex_;
+  std::mutex stop_mutex_;
+
+  std::condition_variable cv_;
+  std::condition_variable stop_cv_;
 
   std::thread timer_;
   
