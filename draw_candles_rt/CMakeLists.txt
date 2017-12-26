@@ -21,6 +21,15 @@ set(SOURCES
   src/gui.cpp
 )
 
+# MSVC does not default to C++17 yet
+if (MSVC_VERSION GREATER_EQUAL "1900")
+  include(CheckCXXCompilerFlag)
+  CHECK_CXX_COMPILER_FLAG("/std:c++17" _cpp_latest_flag_supported)
+  if (_cpp_latest_flag_supported)
+    add_compile_options("/std:c++17")
+  endif()
+endif()  
+
 add_library(lualib_draw_candles_rt SHARED ${SOURCES})
 
 target_link_libraries(lualib_draw_candles_rt ${LUA_LIBRARIES})

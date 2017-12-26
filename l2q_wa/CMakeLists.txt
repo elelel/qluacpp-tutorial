@@ -20,6 +20,15 @@ set(SOURCES
   src/l2q_wa.cpp
 )
 
+# MSVC does not default to C++17 yet
+if (MSVC_VERSION GREATER_EQUAL "1900")
+  include(CheckCXXCompilerFlag)
+  CHECK_CXX_COMPILER_FLAG("/std:c++17" _cpp_latest_flag_supported)
+  if (_cpp_latest_flag_supported)
+    add_compile_options("/std:c++17")
+  endif()
+endif()  
+
 add_library(lualib_l2q_wa SHARED ${SOURCES})
 
 target_link_libraries(lualib_l2q_wa ${LUA_LIBRARIES})

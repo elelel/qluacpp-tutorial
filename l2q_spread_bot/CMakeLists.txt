@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.4.0)
+cmake_minimum_required(VERSION 3.8.2)
 project(l2q_spread_bot)
 
 get_filename_component(TOP_DIR "${CMAKE_CURRENT_SOURCE_DIR}" PATH)
@@ -22,6 +22,16 @@ set(SOURCES
   src/status.cpp
 )
 
+# MSVC does not default to C++17 yet
+if (MSVC_VERSION GREATER_EQUAL "1900")
+  include(CheckCXXCompilerFlag)
+  CHECK_CXX_COMPILER_FLAG("/std:c++17" _cpp_latest_flag_supported)
+  if (_cpp_latest_flag_supported)
+    add_compile_options("/std:c++17")
+  endif()
+endif()  
+
 add_library(lualib_l2q_spread_bot SHARED ${SOURCES})
 
 target_link_libraries(lualib_l2q_spread_bot ${LUA_LIBRARIES})
+

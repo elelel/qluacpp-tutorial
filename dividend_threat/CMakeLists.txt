@@ -26,12 +26,20 @@ if (NOT TARGET curl)
   add_subdirectory(${CURL} curl)
 endif()
 
-
 set(SOURCES
   src/calendar.cpp
   src/dividends_table.cpp
   src/dividend_threat.cpp
 )
+
+# MSVC does not default to C++17 yet
+if (MSVC_VERSION GREATER_EQUAL "1900")
+  include(CheckCXXCompilerFlag)
+  CHECK_CXX_COMPILER_FLAG("/std:c++17" _cpp_latest_flag_supported)
+  if (_cpp_latest_flag_supported)
+    add_compile_options("/std:c++17")
+  endif()
+endif()  
 
 add_library(lualib_dividend_threat SHARED ${SOURCES})
 
