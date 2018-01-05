@@ -26,12 +26,7 @@ struct bot {
                        ::lua::entity<::lua::type_policy<const char*>> sec_class,
                        ::lua::entity<::lua::type_policy<const char*>> sec_code);
 
-  // Thread unsafe things to call on main thread
-  static void thread_unsafe_main(const lua::state& l);
-  // Thread safe wrapper for thread_unsafe
-  static std::tuple<bool> thread_safe_main(const lua::state& l,
-                                           ::lua::entity<::lua::type_policy<const int>>,
-                                           ::lua::entity<::lua::type_policy<const int>>);
+  static void low_priority_actions(const lua::state& l);
   // Terminate with message
   static void terminate(const qlua::api& q,
                         const std::string& msg = "");
@@ -54,7 +49,6 @@ private:
   std::mutex mutex_;
   std::mutex stop_mutex_;
 
-  std::condition_variable cv_;
   std::condition_variable stop_cv_;
 
   std::thread timer_;
