@@ -49,6 +49,7 @@ struct state {
   void refresh_available_instrs();
   // Update all class name/security name pairs for a class
   void refresh_available_instrs(const std::string& class_name);
+
   // Quik Junior does not really update info for most instruments.
   // Filter available instrs to contain only those known to be updated.
   void filter_available_instrs_quik_junior();

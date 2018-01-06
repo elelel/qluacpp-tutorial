@@ -50,6 +50,8 @@ void bot::main(const lua::state& l) {
   int k{0};
   while (true) {
     if (b.mutex_.try_lock()) {
+      // Wait to decrease probability that we will not be blocked by a previous callback handler call
+      std::this_thread::sleep_for(std::chrono::milliseconds(30));
       b.low_priority_actions(l);
       b.mutex_.unlock();
     } else {
@@ -61,7 +63,7 @@ void bot::main(const lua::state& l) {
       b.state_ = nullptr;
       break;
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
   b.main_stopped = true;
@@ -132,6 +134,7 @@ void bot::on_order(const lua::state& l,
                      order().qty(),
                      order().balance(),
                      order().price());
+  std::cout << "OnOrder setting update status to true" << std::endl;
   b.update_status = true;
   std::cout << "OnOrder done" << std::endl;
 }
