@@ -51,11 +51,6 @@ void bot::main(const lua::state& l) {
   int k{0};
   while (true) {
     std::unique_lock<std::mutex> lock(b.mutex_);
-    std::cout << "Main waiting " <<
-      b.refresh_instruments << " " <<
-      b.select_candidates << " " <<
-      b.update_status << " " <<
-      b.terminated << " " << std::endl;
     b.cv_.wait(lock, [&b] () {
         return b.refresh_instruments ||
           b.select_candidates ||
@@ -63,6 +58,9 @@ void bot::main(const lua::state& l) {
           b.terminated; 
       });
     std::cout << "Woke up main"  << std::endl;
+
+    // Workaround Quik bug to make sure callback handler has finished
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     qlua::extended q(l);
     std::cout << "Calling thread safe" << std::endl;
