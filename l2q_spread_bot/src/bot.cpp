@@ -64,6 +64,9 @@ void bot::main(const lua::state& l) {
       });
     std::cout << "Woke up main"  << std::endl;
 
+    // Workaround Quik bug to make sure callback handler has finished
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
     qlua::extended q(l);
     std::cout << "Calling thread safe" << std::endl;
     try {
