@@ -49,13 +49,24 @@ void bot::main(const lua::state& l) {
 
   int k{0};
   while (true) {
-    if (b.mutex_.try_lock()) {
-      // Wait to decrease probability that we will not be blocked by a previous callback handler call
-      std::this_thread::sleep_for(std::chrono::milliseconds(30));
-      b.low_priority_actions(l);
-      b.mutex_.unlock();
-    } else {
-      std::cout << "Skipping low priority actions...";
+    std::unique_lock<std::mutex> lock(b.mutex_);
+    b.cv_.wait(lock, [&b] () {
+        return b.refresh_instruments ||
+          b.select_candidates ||
+          b.update_status ||
+          b.terminated; 
+      });
+    std::cout << "Woke up main"  << std::endl;
+
+    // Workaround Quik bug to make sure callback handler has finished
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    qlua::extended q(l);
+    std::cout << "Calling thread safe" << std::endl;
+    try {
+      q.thread_safe_exec(l, "l2q_spread_bot_sync_object", "thread_safe_main");
+    } catch (std::exception e) {
+      b.terminate(q, "Failed to call thread safely, exception: " + std::string(e.what()));
     }
     if (b.terminated) {
       std::cout << "Main terminating" << std::endl;
