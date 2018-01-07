@@ -327,7 +327,6 @@ bool state::trans_times_limits_ok() {
 }
 
 void state::act() {
-  std::cout << "act(): removing inactive instruments" << std::endl;
   remove_inactive_instruments();
   for (auto& ip : instrs) {
     auto& instr = ip.first;
@@ -336,7 +335,6 @@ void state::act() {
     if ((info.buy_order.order_key != 0)) {
       // Kill buy order if spread became low
       if (info.spread < b_.settings().min_spread) {
-        std::cout << "act(): requesting kill buy order " << info.buy_order.order_key << std::endl;
         request_kill_order(instr, info.buy_order);
       }
     }
@@ -344,7 +342,6 @@ void state::act() {
     if ((info.sell_order.order_key != 0)) {
       // Kill sell order if spread became low
       if (info.spread < b_.settings().min_spread) {
-        std::cout << "act(): requesting kill sell order " << info.buy_order.order_key << std::endl;
         request_kill_order(instr, info.sell_order);
       }
     }
@@ -372,7 +369,6 @@ void state::act() {
     
     update_l2q_subscription(instr, info);
   }
-  std::cout << "act(): setting update_status to true " << std::endl;
   b_.update_status = true;
 }
 
@@ -381,7 +377,6 @@ void state::on_order(unsigned int trans_id, unsigned int order_key, const unsign
   instrument_info* info{nullptr};
 
   if (trans_id != 0) {
-    std::cout << "on_order: searching trans_id in instruments" << std::endl;
     auto found = std::find_if(instrs.begin(), instrs.end(), [trans_id] (const std::pair<instrument, instrument_info>& ip) {
         const auto& info = ip.second; 
         return (info.buy_order.new_trans_id == trans_id)
@@ -397,7 +392,6 @@ void state::on_order(unsigned int trans_id, unsigned int order_key, const unsign
 
   if ((instr == nullptr) && (order_key != 0)) {
     // Could not find by trans_id, search by order_key if it's not 0
-    std::cout << "on_order: searching by order_key" << std::endl;
     auto found = std::find_if(instrs.begin(), instrs.end(), [order_key] (const std::pair<instrument, instrument_info>& ip) {
         const auto& info = ip.second; 
         return (info.buy_order.order_key == order_key) || (info.sell_order.order_key == order_key);
@@ -437,7 +431,6 @@ void state::on_order(unsigned int trans_id, unsigned int order_key, const unsign
     } else if (!(flags &1)) { // Inactive
       order->order_key = 0;
     }
-    std::cout << "on_order: calling act" << std::endl;
     act();
   }
 }

@@ -36,6 +36,7 @@ void bot::main(const lua::state& l) {
           if (counter >= b.settings().candidates_refresh_timeout * 1000) {
             b.refresh_instruments = true;
             counter = 0;
+            b.cv_.notify_one();
           }
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
@@ -50,6 +51,11 @@ void bot::main(const lua::state& l) {
   int k{0};
   while (true) {
     std::unique_lock<std::mutex> lock(b.mutex_);
+    std::cout << "Main waiting " <<
+      b.refresh_instruments << " " <<
+      b.select_candidates << " " <<
+      b.update_status << " " <<
+      b.terminated << " " << std::endl;
     b.cv_.wait(lock, [&b] () {
         return b.refresh_instruments ||
           b.select_candidates ||
@@ -57,10 +63,10 @@ void bot::main(const lua::state& l) {
           b.terminated; 
       });
     std::cout << "Woke up main"  << std::endl;
-
+    
     // Workaround Quik bug to make sure callback handler has finished
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
+    
     qlua::extended q(l);
     std::cout << "Calling thread safe" << std::endl;
     try {
@@ -68,20 +74,22 @@ void bot::main(const lua::state& l) {
     } catch (std::exception e) {
       b.terminate(q, "Failed to call thread safely, exception: " + std::string(e.what()));
     }
+    b.refresh_instruments = false;
+    b.select_candidates = false;
+    b.update_status = false;
     if (b.terminated) {
       std::cout << "Main terminating" << std::endl;
       b.timer_ = std::move(std::thread());
       b.state_ = nullptr;
       break;
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
   b.main_stopped = true;
   b.stop_cv_.notify_one();
 }
 
-void bot::low_priority_actions(const lua::state& l) {
+void bot::thread_unsafe_main(const lua::state& l) {
   auto &b = bot::instance();
   b.state_->set_lua_state(l);
   if (b.refresh_instruments) {
@@ -89,22 +97,35 @@ void bot::low_priority_actions(const lua::state& l) {
     b.state_->refresh_available_instrs();
     // For trading in Quik Junior emulator, remove otherwise
     b.state_->filter_available_instrs_quik_junior();
-    b.refresh_instruments = false;
   }
 
   if (b.select_candidates) {
     std::cout << "Selecting candidates" << std::endl;
     b.state_->choose_candidates();
-    b.select_candidates = false;
   }
   
   if (b.update_status) {
     std::cout << "Updating status" << std::endl;
     b.status_->set_lua_state(l);
     b.status_->update();
-    b.update_status = false;
   }
 }
+
+std::tuple<bool> bot::thread_safe_main(const lua::state& l,
+                                       ::lua::entity<::lua::type_policy<const int>>,
+                                       ::lua::entity<::lua::type_policy<const int>>) {
+  thread_unsafe_main(l);
+  return std::make_tuple(bool{true});
+}
+
+/*
+std::tuple<bool> bot::thread_safe_cv_notify(const lua::state& l,
+                                            ::lua::entity<::lua::type_policy<const int>>,
+                                            ::lua::entity<::lua::type_policy<const int>>) {
+  auto& b = bot::instance();
+  b.cv_.notify_one();
+  return std::make_tuple(bool{true});
+  }*/
 
 std::tuple<int> bot::on_stop(const lua::state& l,
                              ::lua::entity<::lua::type_policy<int>> signal) {
@@ -115,6 +136,7 @@ std::tuple<int> bot::on_stop(const lua::state& l,
   b.status_->set_lua_state(l);
   b.status_ = nullptr;
   b.terminated = true;
+  b.cv_.notify_one();
   std::unique_lock<std::mutex> lock(b.stop_mutex_);
   std::cout << "Waiting for main to stop" << std::endl;
   b.stop_cv_.wait(lock, [&b] () { return b.main_stopped == true; });
@@ -130,6 +152,7 @@ void bot::on_connected(const lua::state& l,
   if (new_class_received()) {
     b.refresh_instruments = true;
     b.select_candidates = true;
+    b.cv_.notify_one();
   }
 }
 
@@ -137,7 +160,6 @@ void bot::on_order(const lua::state& l,
                    ::lua::entity<::lua::type_policy<::qlua::table::orders>> order) {
   std::cout << "OnOrder" << std::endl;
   auto& b = bot::instance();
-  std::lock_guard<std::mutex> lock(b.mutex_);
   b.state_->set_lua_state(l);
   b.state_->on_order(order().trans_id(),
                      order().order_num(),
@@ -145,8 +167,8 @@ void bot::on_order(const lua::state& l,
                      order().qty(),
                      order().balance(),
                      order().price());
-  std::cout << "OnOrder setting update status to true" << std::endl;
   b.update_status = true;
+  b.cv_.notify_one();
   std::cout << "OnOrder done" << std::endl;
 }
 
@@ -155,11 +177,11 @@ void bot::on_quote(const lua::state& l,
                    ::lua::entity<::lua::type_policy<const char*>> sec_code) {
   std::cout << "OnQuote" << std::endl;
   auto& b = bot::instance();
-  std::lock_guard<std::mutex> lock(b.mutex_);
   b.state_->set_lua_state(l);
   b.state_->on_quote(std::string(sec_class()), std::string(sec_code()));
   std::cout << "OnQuote requesting update status" << std::endl;
   b.update_status = true;
+  b.cv_.notify_one();
   std::cout << "OnQuote done" << std::endl;
 }
 
@@ -169,6 +191,7 @@ void bot::terminate(const qlua::api& q, const std::string& msg) {
   }
   auto& b = bot::instance();
   b.instance().terminated = true;
+  b.cv_.notify_one();
 }
 
 settings_record& bot::settings() {
