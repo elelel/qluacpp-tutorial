@@ -10,8 +10,6 @@
 
 #include "trade_logger.hpp"
 
-#include <iostream>
-
 static struct luaL_reg ls_lib[] = {
   { NULL, NULL }
 };
@@ -76,30 +74,26 @@ void my_main(lua::state& l) {
 }
 
 void OnAllTrade(const lua::state& l,
-                ::lua::entity<::lua::type_policy<::qlua::table::all_trades_no_datetime>> data) {
-  try {
+                ::lua::entity<::lua::type_policy<::qlua::table::all_trades>> data) {
+    qlua::api q(l);
+    try {
     // Create log record in our format
     log_record rec;
     rec.rec_type = record_type::ALL_TRADE;
     all_trade_record r;
     // Copy data from callback
-    r.class_code = data().class_code();
-    r.sec_code = data().sec_code();
-    r.price = data().price();
-    r.value = data().value();
-    r.qty = data().qty();
-
-    // Create all_trades structure that contains time
-    ::qlua::table::all_trades data_with_time(l, -1);
     try {
-      const auto& d = data_with_time.datetime();
-      std::cout << "Got OnAllTrade " << r.class_code << ":" << r.sec_code
-                << ", server timestamp - " << d.hour << ":" << d.min << ":" << d.sec << "." << d.ms << std::endl;
+      r.class_code = data().class_code();
+      r.sec_code = data().sec_code();
+      r.price = data().price();
+      r.value = data().value();
+      r.qty = data().qty();
+      r.trade_datetime = data().datetime();
     } catch (std::runtime_error e) {
-      std::cout << "Error accessing all_trades with time structure - " << e.what() << std::endl;
+      q.message((std::string("log_all_trades: failed to get all_trade fields, exception ") + e.what()).c_str());
     }
+
     // Request additional data on instrument from QLua
-    qlua::api q(l);
     q.getSecurityInfo(r.class_code.c_str(), r.sec_code.c_str(),
                       [&r] (const auto& sec_info) {
                         r.name = sec_info().name();
@@ -122,7 +116,7 @@ std::tuple<int> OnStop(const lua::state& l,
 }
 
 LUACPP_STATIC_FUNCTION2(main, my_main)
-LUACPP_STATIC_FUNCTION3(OnAllTrade, OnAllTrade, ::qlua::table::all_trades_no_datetime)
+LUACPP_STATIC_FUNCTION3(OnAllTrade, OnAllTrade, ::qlua::table::all_trades)
 LUACPP_STATIC_FUNCTION3(OnStop, OnStop, int)
 
 extern "C" {

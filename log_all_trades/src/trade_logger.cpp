@@ -2,6 +2,7 @@
 
 #include <ctime>
 #include <iostream>
+#include <iomanip>
 
 static std::ofstream& operator<<(std::ofstream& file, const log_record& rec) {
   auto remove_crlf = [] (char c[]) {
@@ -24,31 +25,41 @@ static std::ofstream& operator<<(std::ofstream& file, const log_record& rec) {
 
   switch (rec.rec_type) {
   case record_type::ALL_TRADE:
-    file << "All trades. "
-         << "Name: " << rec.all_trade.name << ", "
-         << "Code: " << rec.all_trade.sec_code << ", "
-         << "Price: " << rec.all_trade.price << ", "
-         << "Value: " << rec.all_trade.value << ", "
-         << "Qty: " << rec.all_trade.qty
-         << "\n";
+    {
+    auto& d = rec.all_trade.trade_datetime;
+    file << "Trade: ["
+         << "timestamp "
+         << d.year << "/"
+         << std::setfill('0') << std::setw(2) << d.month << "/"
+         << std::setfill('0') << std::setw(2) << d.day << " "
+         << std::setfill('0') << std::setw(2) << d.hour << ":"
+         << std::setfill('0') << std::setw(2) << d.min << ":"
+         << std::setfill('0') << std::setw(2) << d.sec << ", "
+         << "name " << rec.all_trade.name << ", "
+         << "code " << rec.all_trade.sec_code << ", "
+         << "price " << rec.all_trade.price << ", "
+         << "value " << rec.all_trade.value << ", "
+         << "qty " << rec.all_trade.qty
+         << "]\n";
     break;
+    }
   case record_type::CLASSES: {
-    file << "All classes. Class codes: ";
+    file << "Classes: [";
     bool need_comma{false};
     for (const auto& name : rec.classes.codes) {
       if (need_comma) { file << ", "; };
       file << name;
       need_comma = true;
     }
-    file << "\n";
+    file << "]\n";
     break;
   }
   case record_type::CLASS_INFO:
-    file << "Class info. "
-         << "Name: " << rec.class_info.name << ", "
-         << "Code: " << rec.class_info.code << ", "
-         << "Number of parameters: " << rec.class_info.npars << ", "
-         << "Number of securities: " << rec.class_info.nsecs << "\n";
+    file << "Class info: ["
+         << "name " << rec.class_info.name << ", "
+         << "code " << rec.class_info.code << ", "
+         << "number of parameters: " << rec.class_info.npars << ", "
+         << "number of securities: " << rec.class_info.nsecs << "]\n";
     break;
   default:
     file << "Unknown record type " << int(rec.rec_type) << "\n";
