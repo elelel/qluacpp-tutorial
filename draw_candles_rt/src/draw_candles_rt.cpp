@@ -16,17 +16,17 @@ static struct luaL_reg ls_lib[] = {
   { NULL, NULL }
 };
 
-static std::unique_ptr<model> m;
+static std::shared_ptr<model> m;
 
 void my_main(lua::state& l) {
   using namespace std::chrono_literals;
   qlua::api q(l);
-  static std::string sec_class{"TQBR"};
+  static std::string sec_class{"QJSIM"};
   static std::string sec_code{"SBER"};
-  m = std::unique_ptr<model>(new model(q, sec_class, sec_code, q.constant<unsigned int>("INTERVAL_M1"), 50));
+  m = std::shared_ptr<model>(new model(q, sec_class, sec_code, q.constant<unsigned int>("INTERVAL_M1"), 50));
   try {
     gui::instance().data_unavailable_text() = {"Data is not available..."};
-    gui::instance().create("QluaCPP RT candles demo - " + sec_class + ":" + sec_code, m.get());
+    gui::instance().create("QluaCPP RT candles demo - " + sec_class + ":" + sec_code, m);
   } catch (std::runtime_error e) {
     q.message((std::string("qluacpp rt candles demo failed to create gui window: ")
                + e.what()).c_str());

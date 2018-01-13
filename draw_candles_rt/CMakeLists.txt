@@ -21,6 +21,8 @@ set(SOURCES
   src/gui.cpp
 )
 
+add_definitions("-DNOMINMAX")
+
 # MSVC does not default to C++17 yet
 if (MSVC_VERSION GREATER_EQUAL "1900")
   include(CheckCXXCompilerFlag)

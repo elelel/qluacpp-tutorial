@@ -3,6 +3,9 @@
 #include "windows.h"
 
 #include <algorithm>
+#include <iostream>
+#include <iomanip>
+#include <sstream>
 
 model::model(const qlua::api& q,
              const std::string& sec_class, const std::string& sec_code, const unsigned int interval,
@@ -37,7 +40,7 @@ model::~model() {
       MessageBoxA(NULL, msg.c_str(), "Draw candles RT error", MB_OK);
     }
     /*
-    // Close() returns nil instead of bool for some reason
+    // Close() returns nil instead of bool because of Quik bug, reported and will be fixed 
     try {
       ds_->Close();
     } catch (std::runtime_error e) {
@@ -45,6 +48,29 @@ model::~model() {
       msg += e.what();
       MessageBoxA(NULL, msg.c_str(), "Draw candles RT error", MB_OK);
       }*/
+  }
+}
+
+void model::fill_candle_from_ds(candle& c, const unsigned int idx) {
+  c.idx = idx;
+  c.high = ds_->H(idx);
+  c.low = ds_->L(idx);
+  c.open = ds_->O(idx);
+  c.close = ds_->C(idx);
+  c.volume = ds_->V(idx);
+  try {
+    std::stringstream ss;
+    auto t = ds_->T(idx);
+    ss << std::setfill('0') << std::setw(4) << t.year << "/"
+       << std::setfill('0') << std::setw(2) << t.month << "/"
+       << std::setfill('0') << std::setw(2) << t.day << " "
+       << std::setfill('0') << std::setw(2) << t.hour << ":"
+       << std::setfill('0') << std::setw(2) << t.min << ":"
+       << std::setfill('0') << std::setw(2) << t.sec << "."
+       << std::setfill('0') << std::setw(2) << t.ms;
+    c.time = ss.str();
+  } catch (...) {
+    std::cout << "Failed to store candle time" << std::endl;
   }
 }
 
@@ -60,26 +86,28 @@ void model::update(const unsigned int idx) {
                                   return c.idx == idx;
                                 });
       if (found != candles_.end()) {
-        found->high = ds_->H(idx);
-        found->low = ds_->L(idx);
-        found->open = ds_->O(idx);
-        found->close = ds_->C(idx);
-        found->volume = ds_->V(idx);
+        fill_candle_from_ds(*found, idx);
       } else {
         // We need to receive new candles window
         candles_.clear();
         candles_.reserve(max_count_);
         for (size_t i = ds_sz - max_count_ + 1; i < ds_sz + 1; ++i) {
           candle c;
-          c.high = ds_->H(i);
-          c.low = ds_->L(i);
-          c.open = ds_->O(i);
-          c.close = ds_->C(i);
-          c.volume = ds_->V(i);
-          c.idx = i;
+          fill_candle_from_ds(c, i);
           candles_.push_back(c);
           last_candle_idx_ = i;
         }
+      }
+      // Recalculate min/max
+      min_price_ = std::numeric_limits<double>::max();
+      max_price_ = std::numeric_limits<double>::min();
+      min_volume_ = std::numeric_limits<double>::max();
+      max_volume_ = std::numeric_limits<double>::min();
+      for (const auto& c : candles_) {
+        if (min_price_ > c.low) min_price_ = c.low;
+        if (max_price_ < c.high) max_price_ = c.high;
+        if (min_volume_ > c.volume) min_volume_ = c.volume;
+        if (max_volume_ < c.volume) max_volume_ = c.volume;
       }
       on_new_data();
     }
@@ -105,6 +133,22 @@ unsigned int& model::interval() {
 
 auto model::candles() const -> const std::vector<candle>& {
   return candles_;
+}
+
+double model::max_price() const {
+  return max_price_;
+}
+
+double model::min_price() const {
+  return min_price_;
+}
+
+double model::max_volume() const {
+  return max_volume_;
+}
+
+double model::min_volume() const {
+  return min_volume_;
 }
 
 void model::notify() {
