@@ -64,7 +64,7 @@ struct gui {
   std::string title_;
   std::string wnd_class_{"qluacpp_draw_candles_rt"};
   void* hwnd_{nullptr};
-  int wnd_height_{500};
+  int wnd_height_{400};
   int wnd_width_{900};
   std::atomic<bool> done_{false};
 

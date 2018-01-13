@@ -39,7 +39,6 @@ void chart_area::paint_candles(void* paintstruct) const {
     auto min_volume = m_.min_volume();
     auto volume_z = max_volume - min_volume;
 
-    std::cout << "Close to open " << std::endl;
     // Close to open lines
     for (size_t i = 0; i < cs.size() - 1; ++i) {
       double l_close = (cs[i].close - min_price)/price_z;
@@ -52,7 +51,6 @@ void chart_area::paint_candles(void* paintstruct) const {
       Polyline(ps->hdc, line_points.data(), line_points.size());
     }
 
-    std::cout << "Bodies " << std::endl;
     // Candle bodies
     size_t i{0};
     for (const auto& c : cs) {
@@ -91,25 +89,30 @@ void chart_bottom::paint(void* paintstruct) const {
   const auto& cs = m_.candles();
   if (cs.size() > 1) {
     // Candle dates
-    const float factor = (2.0f * 3.1416f) / 360.0f;
-    const float rot = 90.0f * factor;
-    XFORM xfm = { 0.0 };
-    xfm.eM11 = cos(rot);
-    xfm.eM12 = sin(rot);
-    xfm.eM21 = -sin(rot);
-    xfm.eM22 = cos(rot);
+    const float factor = (1.0f * 3.1416f) / 360.0f;
+    const float rot = 45.0f * factor;
+    XFORM oldtransform;
+    XFORM xfm = { 0.0f };
+    xfm.eM11 = (float)cos(rot);
+    xfm.eM12 = (float)sin(rot);
+    xfm.eM21 = (float)-sin(rot);
+    xfm.eM22 = (float)cos(rot);
     auto old_mode = GetGraphicsMode(ps->hdc);
     SetGraphicsMode(ps->hdc, GM_ADVANCED);
+    GetWorldTransform(ps->hdc, &oldtransform);
     SetWorldTransform(ps->hdc, &xfm);
     for (size_t i = 0; i < cs.size(); ++i) {
       // Write time for every 5 candles
       if (((i % 5) == 0) || (i == cs.size() - 1)) {
+        std::cout << "Drawing candle with time " << cs[i].time << std::endl;
         TextOut(ps->hdc, abs_x(i * candle_width_), abs_y(5), cs[i].time.c_str(), cs[i].time.size());
       }
     }
+
+    SetWorldTransform(ps->hdc, &oldtransform);
     SetGraphicsMode(ps->hdc, old_mode);
       
-    const long time_labels_height = 100;
+    const long labels_height = 100;
 
     // Last price
     auto max_volume = m_.max_volume();
@@ -118,19 +121,19 @@ void chart_bottom::paint(void* paintstruct) const {
     std::string last_str = std::to_string(cs[cs.size()-1].close);
     while ((last_str.find(".") != std::string::npos) && (last_str[last_str.size() - 1] == '0'))
       last_str = last_str.substr(0, last_str.size() - 1);
-    TextOut(ps->hdc, abs_x(width_ - 80), abs_y(20), last_str.c_str(), last_str.size());
+    TextOut(ps->hdc, abs_x(width_ - 80), abs_y(labels_height + 20), last_str.c_str(), last_str.size());
 
     // Volume gauge
     const long x_offset = 10;
     std::string vol_txt{"Volume:"};
-    TextOut(ps->hdc, abs_x(x_offset), abs_y(0), vol_txt.c_str(), vol_txt.size());
+    TextOut(ps->hdc, abs_x(x_offset), abs_y(labels_height), vol_txt.c_str(), vol_txt.size());
     std::string min_vol_str = std::to_string(std::lround(min_volume));
     std::string max_vol_str = std::to_string(std::lround(max_volume));
-    TextOut(ps->hdc, abs_x(x_offset - 3), abs_y(5 + 20), min_vol_str.c_str(), min_vol_str.size());
-    TextOut(ps->hdc, abs_x(x_offset + 255 - 3), abs_y(5 + 20), max_vol_str.c_str(), max_vol_str.size());
+    TextOut(ps->hdc, abs_x(x_offset - 3), abs_y(labels_height + 5 + 20), min_vol_str.c_str(), min_vol_str.size());
+    TextOut(ps->hdc, abs_x(x_offset + 255 - 3), abs_y(labels_height + 5 + 20), max_vol_str.c_str(), max_vol_str.size());
     for (int i = 1; i < 255; ++i) {
-      std::vector<POINT> line{{abs_x(x_offset + i), abs_y(50)},
-          {abs_x(x_offset + i), abs_y(75)}};
+      std::vector<POINT> line{{abs_x(x_offset + i), abs_y(labels_height + 50)},
+          {abs_x(x_offset + i), abs_y(labels_height + 75)}};
       auto pen = CreatePen(PS_SOLID, 1, RGB(i, 128, 255-i));
       SelectObject(ps->hdc, pen);
       Polyline(ps->hdc, line.data(), line.size());
@@ -139,11 +142,11 @@ void chart_bottom::paint(void* paintstruct) const {
     auto pen = CreatePen(PS_SOLID, 1, 0);
     SelectObject(ps->hdc, pen);
     SelectObject(ps->hdc, GetStockObject(NULL_BRUSH));
-    Rectangle(ps->hdc, abs_x(x_offset),  abs_y(50), abs_x(x_offset + 255), abs_y(75));
-    std::vector<POINT> vol_min_line{{abs_x(x_offset), abs_y(50 - 10)},
-        {abs_x(x_offset), abs_y(50)}};
-    std::vector<POINT> vol_max_line{{abs_x(x_offset + 254), abs_y(50 - 10)},
-        {abs_x(x_offset + 254), abs_y(50)}};
+    Rectangle(ps->hdc, abs_x(x_offset),  abs_y(labels_height + 50), abs_x(x_offset + 255), abs_y(labels_height + 75));
+    std::vector<POINT> vol_min_line{{abs_x(x_offset), abs_y(labels_height + 50 - 10)},
+        {abs_x(x_offset), abs_y(labels_height + 50)}};
+    std::vector<POINT> vol_max_line{{abs_x(x_offset + 254), abs_y(labels_height + 50 - 10)},
+        {abs_x(x_offset + 254), abs_y(labels_height + 50)}};
     Polyline(ps->hdc, vol_min_line.data(), vol_min_line.size());
     Polyline(ps->hdc, vol_max_line.data(), vol_max_line.size());
     DeleteObject(pen);
@@ -246,14 +249,17 @@ void gui::create(const std::string& title, std::shared_ptr<model> m) {
   title_ = title;
   model_ = m;
   auto hinstance = GetModuleHandle(NULL);
+  auto const chart_height = std::lround(wnd_height_ * 0.4);
+  auto const bottom_height =  std::lround(wnd_height_ * 0.6);
+
   chart = std::make_unique<chart_area>(*m,
                                        0, 0,
-                                       wnd_width_ - 6, wnd_height_ /3 * 2,
+                                       wnd_width_ - 6, chart_height,
                                        3,
                                        (wnd_width_ - 6) / m->max_count());
   bottom = std::make_unique<chart_bottom>(*m,
-                                          0, wnd_height_ /3 * 2 + 1,
-                                          wnd_width_ - 6, wnd_height_ /3,
+                                          0, chart_height,
+                                          wnd_width_ - 6, bottom_height,
                                           3,
                                           (wnd_width_ - 6) / m->max_count());
 
