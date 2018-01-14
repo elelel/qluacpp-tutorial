@@ -46,6 +46,8 @@ struct chart_bottom : paintable {
   using paintable::paintable;
 
   void paint(void* paintstruct) const;
+private:
+  int labels_height_{0};
 };
 
 struct gui {
