@@ -62,7 +62,7 @@ struct QTable {
   }
 
   template <typename T>
-  T QTable::GetValue(const int row, const std::string& name) {
+  T GetValue(const int row, const std::string& name) {
     auto found_col = columns_.find(col_name);
     if (found_col != columns_.end()) {
       auto col_ind = found_col->second.id;
