@@ -35,3 +35,5 @@ add_library(lualib_l2q_spread_bot SHARED ${SOURCES})
 
 target_link_libraries(lualib_l2q_spread_bot ${LUA_LIBRARIES})
 
+# Needed for Mingw
+set_target_properties(lualib_l2q_spread_bot PROPERTIES CXX_STANDARD 17)

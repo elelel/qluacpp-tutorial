@@ -44,3 +44,6 @@ generate_export_header(cpp_dll
 add_library(lualib_basic_dll SHARED ${SOURCES})
 
 target_link_libraries(lualib_basic_dll cpp_dll ${LUA_LIBRARIES})
+
+# Needed for Mingw
+set_target_properties(lualib_basic_dll PROPERTIES CXX_STANDARD 17)

@@ -34,3 +34,6 @@ endif()
 add_library(lualib_log_all_trades SHARED ${SOURCES})
 
 target_link_libraries(lualib_log_all_trades ${LUA_LIBRARIES})
+
+# Needed for Mingw
+set_target_properties(lualib_log_all_trades PROPERTIES CXX_STANDARD 17)

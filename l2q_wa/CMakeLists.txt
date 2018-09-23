@@ -32,3 +32,6 @@ endif()
 add_library(lualib_l2q_wa SHARED ${SOURCES})
 
 target_link_libraries(lualib_l2q_wa ${LUA_LIBRARIES})
+
+# Needed for Mingw
+set_target_properties(lualib_l2q_wa PROPERTIES CXX_STANDARD 17)

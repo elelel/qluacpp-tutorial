@@ -34,3 +34,6 @@ endif()
 add_library(lualib_qlua_chm_ex1 SHARED ${SOURCES})
 
 target_link_libraries(lualib_qlua_chm_ex1 ${LUA_LIBRARIES})
+
+# Needed for Mingw
+set_target_properties(lualib_qlua_chm_ex1 PROPERTIES CXX_STANDARD 17)

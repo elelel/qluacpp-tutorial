@@ -31,3 +31,6 @@ endif()
 add_library(lualib_basic_tutorial SHARED ${SOURCES})
 
 target_link_libraries(lualib_basic_tutorial ${LUA_LIBRARIES})
+
+# Needed for Mingw
+set_target_properties(lualib_basic_tutorial PROPERTIES CXX_STANDARD 17)

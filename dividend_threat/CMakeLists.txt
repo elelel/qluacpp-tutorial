@@ -44,3 +44,6 @@ endif()
 add_library(lualib_dividend_threat SHARED ${SOURCES})
 
 target_link_libraries(lualib_dividend_threat ${LUA_LIBRARIES} libcurl)
+
+# Needed for Mingw
+set_target_properties(lualib_dividend_thread PROPERTIES CXX_STANDARD 17)

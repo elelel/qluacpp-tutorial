@@ -35,3 +35,6 @@ endif()
 add_library(lualib_draw_candles SHARED ${SOURCES})
 
 target_link_libraries(lualib_draw_candles ${LUA_LIBRARIES})
+
+# Needed for Mingw
+set_target_properties(lualib_draw_candles PROPERTIES CXX_STANDARD 17)
