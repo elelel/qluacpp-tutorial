@@ -33,7 +33,7 @@ struct all_trade_record {
   double price;
   double value;
   double qty;
-  ::qlua::table::all_trades::date_time trade_datetime;  
+  ::qlua::c_date_time trade_datetime;  
 };
   
 struct log_record {
