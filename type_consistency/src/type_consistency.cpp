@@ -19,7 +19,7 @@ void test_getItem(qlua::api &q, std::function<void(const lua::entity<lua::type_p
   std::cout << "Table: ::qlua::table::" << table_name << std::endl;
   try {
     size_t n = q.getNumberOf<Table>();
-    for (size_t i = 0; i < n; ++i) {
+    for (int i = 0; i < n; ++i) {
       try {
         using entity = const lua::entity<lua::type_policy<Table>>&;
         q.getItem<Table>(i, [&q, &f] (entity e) {
