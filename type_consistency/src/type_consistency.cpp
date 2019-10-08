@@ -97,6 +97,7 @@ TEST_TABLE_GETTER(status)
 TEST_TABLE_GETTER(firmuse)
 TEST_TABLE_GETTER(depaccid)
 TEST_TABLE_GETTER(bank_acc_id)
+    //TEST_TABLE_GETTER(exec_market)
     TEST_TABLE_END(trade_accounts)
 
     TEST_TABLE_BEGIN(all_trades)
@@ -118,6 +119,7 @@ TEST_TABLE_GETTER(datetime)
 TEST_TABLE_GETTER(period)
 TEST_TABLE_GETTER(open_interest)
 TEST_TABLE_GETTER(exchange_code)
+TEST_TABLE_GETTER(exec_market)
     TEST_TABLE_END(all_trades)
 
     TEST_TABLE_BEGIN(account_positions)
@@ -311,6 +313,29 @@ TEST_TABLE_GETTER(canceled_datetime)
 TEST_TABLE_GETTER(clearing_firmid)
 TEST_TABLE_GETTER(system_ref)
 TEST_TABLE_GETTER(uid)
+
+TEST_TABLE_GETTER(lseccode)
+TEST_TABLE_GETTER(order_revision_number)
+TEST_TABLE_GETTER(order_qty)
+TEST_TABLE_GETTER(order_price)
+TEST_TABLE_GETTER(order_exchange_code)
+TEST_TABLE_GETTER(exec_market)
+TEST_TABLE_GETTER(liquidity_indicator)
+    TEST_TABLE_GETTER(extref)
+TEST_TABLE_GETTER(ext_trade_flags)
+TEST_TABLE_GETTER(on_behalf_of_uid)
+TEST_TABLE_GETTER(client_qualifier)
+TEST_TABLE_GETTER(client_short_code)
+TEST_TABLE_GETTER(investment_decision_maker_qualifier)
+TEST_TABLE_GETTER(investment_decision_maker_short_code)
+TEST_TABLE_GETTER(executing_trader_qualifier)
+TEST_TABLE_GETTER(executing_trader_short_code)
+TEST_TABLE_GETTER(waiver_flag)
+TEST_TABLE_GETTER(mleg_base_sid)
+TEST_TABLE_GETTER(side_qualifier)
+TEST_TABLE_GETTER(otc_post_trade_indicator)
+TEST_TABLE_GETTER(capacity)
+TEST_TABLE_GETTER(cross_rate)
     TEST_TABLE_END(trades)
 
     TEST_TABLE_BEGIN(stop_orders)
@@ -559,6 +584,11 @@ void my_main(lua::state& l) {
   using namespace std::chrono_literals;
   qlua::api q(l);
   test_tables(q);
+  q.message("type consistency: Waiting for callbacks");
+  for (int i = 0; i < 25; ++i) {
+    std::this_thread::sleep_for(1s);
+  }
+  q.message("type consistency: Terminating main handler");
 }
 
 std::tuple<int> OnStop(const lua::state& l,
@@ -566,14 +596,21 @@ std::tuple<int> OnStop(const lua::state& l,
   return std::make_tuple(int(0));
 }
 
+void OnTransReply(const lua::state& l,
+                  ::lua::entity<::lua::type_policy<::qlua::table::trans_reply>> reply) {
+  std::cout << "OnTransReply" << std::endl;
+}
+
 LUACPP_STATIC_FUNCTION2(main, my_main)
 LUACPP_STATIC_FUNCTION3(OnStop, OnStop, int)
+LUACPP_STATIC_FUNCTION3(OnTransReply, OnTransReply, ::qlua::table::trans_reply)
 
 extern "C" {
   LUALIB_API int luaopen_lualib_type_consistency(lua_State *L) {
     lua::state l(L);
 
     ::lua::function::main().register_in_lua(l, my_main);
+    ::lua::function::OnTransReply().register_in_lua(l, OnTransReply);
 
     luaL_openlib(L, "lualib_type_consistency", ls_lib, 0);
     return 0;

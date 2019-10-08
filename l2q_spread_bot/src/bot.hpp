@@ -25,6 +25,8 @@ struct bot {
   static void on_quote(const lua::state& l,
                        ::lua::entity<::lua::type_policy<const char*>> sec_class,
                        ::lua::entity<::lua::type_policy<const char*>> sec_code);
+  static void on_trans_reply(const lua::state& l,
+                             ::lua::entity<::lua::type_policy<::qlua::table::trans_reply>> reply);
 
   // Thread unsafe things to call on main thread
   static void thread_unsafe_main(const lua::state& l);

@@ -82,6 +82,8 @@ void status::update_title() {
 }
 
 void status::update() {
+  return;  // Do not show status; new Quik versions changed thread-locking policy
+  
   if (table_id_ != 0) {
     try {
       auto def_color = q_->constant<int>("QTABLE_DEFAULT_COLOR");
@@ -90,7 +92,9 @@ void status::update() {
       std::cout << "First UI Qlua func returned" << std::endl;
       int n{-1};
       for (const auto& ip : b_.get_state()->instrs) {
+        std::cout << "  update cycle: Calling InsertRow. This will lock on Quik >8.0" << std::endl;
         n = q_->InsertRow(table_id_, -1);
+        std::cout << "  update cycle: Calling SetCell" << std::endl;
         const auto& info = ip.second;
         q_->SetCell(table_id_, n, column::ACCID, b_.get_state()->class_to_accid[ip.first.first].c_str(), 0);
         q_->SetCell(table_id_, n, column::CLASS, ip.first.first.c_str(), 0);

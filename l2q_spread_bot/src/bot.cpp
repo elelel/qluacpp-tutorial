@@ -185,6 +185,23 @@ void bot::on_quote(const lua::state& l,
   std::cout << "OnQuote done" << std::endl;
 }
 
+void bot::on_trans_reply(const lua::state& l,
+                         ::lua::entity<::lua::type_policy<::qlua::table::trans_reply>> reply) {
+  std::cout << "OnTransReply:" << std::endl;
+  std::cout << "  trans_id " << reply().trans_id()  << std::endl;
+  std::cout << "  status " << reply().status()  << std::endl;
+  std::cout << "  result_msg " << reply().result_msg() << std::endl;
+  try {
+    std::cout << "  date_time date " << reply().date_time().year << std::endl;
+  } catch (std::runtime_error e) {
+    std::cout << "\n Could not get date_time - " << e.what() << "\n";
+  }
+  std::cout << "  uid " << reply().uid() << std::endl;
+  std::cout << "  flags " << reply().flags() << std::endl;
+  std::cout << "  server_trans_id " << reply().server_trans_id() << std::endl;
+}
+
+
 void bot::terminate(const qlua::api& q, const std::string& msg) {
   if (msg.size() > 0) {
     q.message(msg.c_str());

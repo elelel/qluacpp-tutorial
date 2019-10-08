@@ -81,7 +81,7 @@ void state::init_client_info() {
           client_code = c();
         });
       n = q_->getNumberOf<::qlua::table::trade_accounts>();
-      for (size_t i = 0; i < n; ++i) {
+      for (unsigned int i = 0; i < n; ++i) {
         q_->getItem<::qlua::table::trade_accounts>(i, [this] (trade_account_entity e) {
             auto trdaccid = e().trdaccid();
             auto class_codes = e().class_codes();

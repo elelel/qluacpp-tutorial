@@ -21,6 +21,7 @@ LUACPP_STATIC_FUNCTION4(thread_safe_main, bot::thread_safe_main, const int, cons
 LUACPP_STATIC_FUNCTION3(OnStop, bot::on_stop, int)
 LUACPP_STATIC_FUNCTION3(OnOrder, bot::on_order, ::qlua::table::orders)
 LUACPP_STATIC_FUNCTION4(OnQuote, bot::on_quote, const char*, const char*)
+LUACPP_STATIC_FUNCTION3(OnTransReply, bot::on_trans_reply, ::qlua::table::trans_reply)
                         
 extern "C" {
   LUALIB_API int luaopen_lualib_l2q_spread_bot(lua_State *L) {
@@ -31,6 +32,7 @@ extern "C" {
     ::lua::function::OnStop().register_in_lua(l, bot::on_stop);
     ::lua::function::OnOrder().register_in_lua(l, bot::on_order);
     ::lua::function::OnQuote().register_in_lua(l, bot::on_quote);
+    ::lua::function::OnTransReply().register_in_lua(l, bot::on_trans_reply);
 
     luaL_openlib(L, "lualib_l2q_spread_bot", ls_lib, 0);
     return 0;

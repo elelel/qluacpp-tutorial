@@ -305,4 +305,3 @@ int gui::chart_area_width() const {
 int gui::chart_area_height() const {
   return wnd_height_ / 3 * 2;
 }
-
