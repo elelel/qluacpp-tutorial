@@ -28,6 +28,7 @@ static std::ofstream& operator<<(std::ofstream& file, const log_record& rec) {
     {
     auto& d = rec.all_trade.trade_datetime;
     file << "Trade: ["
+         << "trade_num: " << rec.all_trade.trade_num << ", "
          << "timestamp "
          << std::setfill('0') << std::setw(4) << d.year << "/"
          << std::setfill('0') << std::setw(2) << d.month << "/"

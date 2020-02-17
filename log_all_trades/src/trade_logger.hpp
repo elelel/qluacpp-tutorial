@@ -27,6 +27,7 @@ struct class_info_record {
 };
 
 struct all_trade_record {
+  std::string trade_num;
   std::string name;
   std::string class_code;
   std::string sec_code;

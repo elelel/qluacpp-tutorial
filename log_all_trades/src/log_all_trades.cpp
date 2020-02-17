@@ -83,6 +83,7 @@ void OnAllTrade(const lua::state& l,
     all_trade_record r;
     // Copy data from callback
     try {
+      r.trade_num = data().trade_num();
       r.class_code = data().class_code();
       r.sec_code = data().sec_code();
       r.price = data().price();
