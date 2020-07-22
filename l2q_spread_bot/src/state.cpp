@@ -4,6 +4,7 @@
 #include <cmath>
 #include <iomanip>
 #include <sstream>
+#include <charconv>
 
 #include <iostream>
 
@@ -123,6 +124,29 @@ void state::request_bid_ask() {
   }
 }
 
+double state::get_param_double_with_workaround(qlua::table::current_trades_getParamEx& param) {
+  double result{0.0};
+  if ((param.param_type() <= 2)) {
+    try {
+      // Try get param in a normal way
+      result = param.param_value();
+      return result;
+    } catch (...) {
+      // Some Quik versions may report invalid param_type (DOUBLE/LONG) when it's actually a STRING representation of a number
+      // Get the param as as string and convert it to double
+      const std::string str = param.param_value_as_string();
+      if (auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), result); ec == std::errc()) {
+        // Converted string to double, return it
+        return result;
+      }
+      // Can't convert to double, re-throw the exception
+      throw;
+    }
+  }
+  // Param type was not reported as a number at all
+  throw std::runtime_error("parameter is not reported as number by Quik");
+}
+
 void state::choose_candidates() {
   using param_entity = const lua::entity<lua::type_policy<qlua::table::current_trades_getParamEx>>&;
 
@@ -140,9 +164,7 @@ void state::choose_candidates() {
         double ask{0.0};
         q_->getParamEx2(instr.first, instr.second, "BID",
                         [&bid] (param_entity param) {
-                          if ((param().param_type() <= 2)) {
-                            bid = param().param_value();
-                          }
+                          bid = get_param_double_with_workaround(param());
                         });
         q_->getParamEx2(instr.first, instr.second, "OFFER",
                         [&ask] (param_entity param) {

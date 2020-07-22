@@ -56,6 +56,8 @@ struct state {
   void init_client_info();
   // Request best bid/ask parameters for all_instrs_
   void request_bid_ask();
+  // Workaround for Quik reporting NUMBER instead of STRING bug
+  static double get_param_double_with_workaround(qlua::table::current_trades_getParamEx& param);
   // Select candidates with highest spread and trade volume > 0
   void choose_candidates();
   // Remove instruments that are not active
