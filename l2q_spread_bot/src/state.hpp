@@ -19,7 +19,7 @@ struct state {
 
   struct order_info {
     unsigned int new_trans_id{0};
-    unsigned int order_key{0};
+    std::string order_key{};
     unsigned int cancel_trans_id{0};
     unsigned int qty;
     double estimated_price; // Estimated optimal price
@@ -73,7 +73,7 @@ struct state {
   void act();
 
   // Handle on_order
-  void on_order(unsigned int trans_id, unsigned int order_key, unsigned int flags, const size_t qty, const size_t balance, const double price);
+  void on_order(unsigned int trans_id, const std::string& order_key, unsigned int flags, const size_t qty, const size_t balance, const double price);
   // Handle level 2 quotes change
   void on_quote(const std::string& class_code, const std::string& sec_code);
   // Handle on_stop event to deinitialize

@@ -109,26 +109,26 @@ void status::update() {
         q_->SetCell(table_id_, n, column::SEC_PRICE_STEP, std::to_string(info.sec_price_step).c_str(), 0);
         q_->SetCell(table_id_, n, column::BALANCE, std::to_string(info.balance).c_str(), 0);
         int buy_color{0xcccccc};
-        if (info.buy_order.order_key != 0) buy_color = 0x00ff22; else
+        if (info.buy_order.order_key.size() != 0) buy_color = 0x00ff22; else
           if ((info.buy_order.estimated_price != 0) && (info.spread > b_.settings().min_spread)) buy_color = 0x000000;
         q_->SetCell(table_id_, n, column::EST_BUY_PRICE, std::to_string(info.buy_order.estimated_price).c_str(), 0);
         q_->SetColor(table_id_, n, column::EST_BUY_PRICE, 0xffffff, buy_color, def_color, def_color);
         int sell_color{0xcccccc};
-        if (info.sell_order.order_key != 0) sell_color = 0x00ff22; else
+        if (info.sell_order.order_key.size() != 0) sell_color = 0x00ff22; else
           if ((info.buy_order.estimated_price != 0) && (info.spread > b_.settings().min_spread)) sell_color = 0x000000;
         q_->SetCell(table_id_, n, column::EST_SELL_PRICE, std::to_string(info.sell_order.estimated_price).c_str(), 0);
         q_->SetColor(table_id_, n, column::EST_SELL_PRICE, 0xffffff, sell_color, def_color, def_color);
         q_->SetCell(table_id_, n, column::SPREAD, std::to_string(info.spread).c_str(), 0);
         
-        if (info.buy_order.order_key != 0) {
-          q_->SetCell(table_id_, n, column::BUY_ORDER, std::to_string(info.buy_order.order_key).c_str(), 0);
+        if (info.buy_order.order_key.size() != 0) {
+          q_->SetCell(table_id_, n, column::BUY_ORDER, info.buy_order.order_key.c_str(), 0);
           q_->SetCell(table_id_, n, column::PLACED_BUY_PRICE, std::to_string(info.buy_order.placed_price).c_str(), 0);
         } else {
           q_->SetCell(table_id_, n, column::BUY_ORDER, "", 0);
           q_->SetCell(table_id_, n, column::PLACED_BUY_PRICE, "", 0);
         }
-        if (info.sell_order.order_key != 0) {
-          q_->SetCell(table_id_, n, column::SELL_ORDER, std::to_string(info.sell_order.order_key).c_str(), 0);
+        if (info.sell_order.order_key.size() != 0) {
+          q_->SetCell(table_id_, n, column::SELL_ORDER, info.sell_order.order_key.c_str(), 0);
           q_->SetCell(table_id_, n, column::PLACED_SELL_PRICE, std::to_string(info.sell_order.placed_price).c_str(), 0);
         } else {
           q_->SetCell(table_id_, n, column::SELL_ORDER, "", 0);

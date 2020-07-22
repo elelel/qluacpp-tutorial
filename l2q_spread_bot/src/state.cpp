@@ -203,9 +203,9 @@ void state::update_l2q_subscription(const instrument& instr, instrument_info& in
   // Consider removing unneeded subscriptions
   if (info.l2q_subscribed &&
       (info.buy_order.new_trans_id == 0) &&
-      (info.buy_order.order_key == 0) &&
+      (info.buy_order.order_key.size() == 0) &&
       (info.sell_order.new_trans_id == 0) &&
-      (info.sell_order.order_key == 0) &&
+      (info.sell_order.order_key.size() == 0) &&
       (info.balance == 0) &&
       (info.spread < b_.settings().min_spread)) {
     // Sometimes Quik for some unknown reason fails to unsubscribe. Let's check that it thinks we are subscribed first
@@ -298,7 +298,7 @@ void state::request_new_order(const instrument& instr, const instrument_info& in
 
 void state::request_kill_order(const instrument& instr, order_info& order) {
   // Check there's an order and there's no previous cancel request pending
-  if ((order.order_key != 0) && (order.cancel_trans_id == 0)) {
+  if ((order.order_key.size() != 0) && (order.cancel_trans_id == 0)) {
     try {
       auto trans_id = next_trans_id();
       std::map<std::string, std::string> trans = {
@@ -306,7 +306,7 @@ void state::request_kill_order(const instrument& instr, order_info& order) {
         {"SECCODE", instr.second},
         {"TRANS_ID", std::to_string(trans_id)},
         {"ACTION", "KILL_ORDER"},
-        {"ORDER_KEY", std::to_string(order.order_key)}
+        {"ORDER_KEY", order.order_key}
       };
       q_->sendTransaction(trans);
       order.cancel_trans_id = trans_id;
@@ -332,14 +332,14 @@ void state::act() {
     auto& instr = ip.first;
     auto& info = ip.second;
     // If we have an active buy order
-    if ((info.buy_order.order_key != 0)) {
+    if ((info.buy_order.order_key.size() != 0)) {
       // Kill buy order if spread became low
       if (info.spread < b_.settings().min_spread) {
         request_kill_order(instr, info.buy_order);
       }
     }
     // If we have an active sell order
-    if ((info.sell_order.order_key != 0)) {
+    if ((info.sell_order.order_key.size() != 0)) {
       // Kill sell order if spread became low
       if (info.spread < b_.settings().min_spread) {
         request_kill_order(instr, info.sell_order);
@@ -347,7 +347,7 @@ void state::act() {
     }
 
     // Do we need to place a new buy order?
-    if ((info.buy_order.order_key == 0) &&
+    if ((info.buy_order.order_key.size() == 0) &&
         (info.spread >= b_.settings().min_spread) &&
         (info.buy_order.estimated_price != 0.0) &&
         (info.buy_order.new_trans_id == 0) && (info.buy_order.cancel_trans_id == 0)) {
@@ -357,7 +357,7 @@ void state::act() {
       }
     }
     // Do we need to place a new sell order?
-    if ((info.sell_order.order_key == 0) &&
+    if ((info.sell_order.order_key.size() == 0) &&
         (info.spread >= b_.settings().min_spread) &&
         (info.sell_order.estimated_price != 0.0) &&
         (info.sell_order.new_trans_id == 0) && (info.sell_order.cancel_trans_id == 0)) {
@@ -372,7 +372,7 @@ void state::act() {
   b_.update_status = true;
 }
 
-void state::on_order(unsigned int trans_id, unsigned int order_key, const unsigned int flags, const size_t qty, const size_t balance, const double price) {
+void state::on_order(unsigned int trans_id, const std::string& order_key, const unsigned int flags, const size_t qty, const size_t balance, const double price) {
   const instrument* instr{nullptr};
   instrument_info* info{nullptr};
 
@@ -390,9 +390,9 @@ void state::on_order(unsigned int trans_id, unsigned int order_key, const unsign
     }
   }
 
-  if ((instr == nullptr) && (order_key != 0)) {
-    // Could not find by trans_id, search by order_key if it's not 0
-    auto found = std::find_if(instrs.begin(), instrs.end(), [order_key] (const std::pair<instrument, instrument_info>& ip) {
+  if ((instr == nullptr) && (order_key.size() != 0)) {
+    // Could not find by trans_id, search by order_key if it's not empty
+    auto found = std::find_if(instrs.begin(), instrs.end(), [&order_key] (const std::pair<instrument, instrument_info>& ip) {
         const auto& info = ip.second; 
         return (info.buy_order.order_key == order_key) || (info.sell_order.order_key == order_key);
       });
@@ -429,7 +429,7 @@ void state::on_order(unsigned int trans_id, unsigned int order_key, const unsign
     else if (flags & 1) { // Active
       order->order_key = order_key;
     } else if (!(flags &1)) { // Inactive
-      order->order_key = 0;
+      order->order_key = "";
     }
     act();
   }
@@ -443,9 +443,9 @@ void state::on_quote(const std::string& class_code, const std::string& sec_code)
     // Check that instrument is in dirty state (no unfinished requests)
     bool dirty{false};
     // Sent sell order, but no order number yet -> dirty
-    if ((info.sell_order.new_trans_id != 0) && (info.sell_order.order_key == 0)) dirty = true;
+    if ((info.sell_order.new_trans_id != 0) && (info.sell_order.order_key.size() == 0)) dirty = true;
     // Sent buy order, but no order number yet -> dirty
-    if ((info.buy_order.new_trans_id != 0) && (info.buy_order.order_key == 0)) dirty = true;
+    if ((info.buy_order.new_trans_id != 0) && (info.buy_order.order_key.size() == 0)) dirty = true;
     if (!dirty) {
       try {
         q_->getQuoteLevel2(class_code, sec_code,
@@ -463,7 +463,7 @@ void state::on_quote(const std::string& class_code, const std::string& sec_code)
                                  const double qty = atof(rec.quantity.c_str());
                                  const double price = atof(rec.price.c_str());
                                  auto new_acc = acc + qty * price;
-                                 if (info.buy_order.order_key != 0) {
+                                 if (info.buy_order.order_key.size() != 0) {
                                    // Don't count our own order
                                    new_acc -= info.buy_order.qty * info.buy_order.placed_price;
                                  }
@@ -487,7 +487,7 @@ void state::on_quote(const std::string& class_code, const std::string& sec_code)
                                  const double qty = atof(rec.quantity.c_str());
                                  const double price = atof(rec.price.c_str());
                                  auto new_acc = acc + qty * price;
-                                 if (info.sell_order.order_key != 0) {
+                                 if (info.sell_order.order_key.size() != 0) {
                                    // Don't count our own order
                                    new_acc -= info.sell_order.qty * info.sell_order.placed_price;
                                  }
@@ -523,8 +523,8 @@ void state::on_quote(const std::string& class_code, const std::string& sec_code)
 void state::on_stop() {
   for (auto& ip : instrs) {
     // Kill any pending orders
-    if (ip.second.buy_order.order_key != 0) request_kill_order(ip.first, ip.second.buy_order);
-    if (ip.second.sell_order.order_key != 0) request_kill_order(ip.first, ip.second.sell_order);
+    if (ip.second.buy_order.order_key.size() != 0) request_kill_order(ip.first, ip.second.buy_order);
+    if (ip.second.sell_order.order_key.size() != 0) request_kill_order(ip.first, ip.second.sell_order);
   }
 }
 
