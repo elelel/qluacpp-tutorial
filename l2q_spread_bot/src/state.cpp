@@ -168,9 +168,7 @@ void state::choose_candidates() {
                         });
         q_->getParamEx2(instr.first, instr.second, "OFFER",
                         [&ask] (param_entity param) {
-                          if ((param().param_type() <= 2)) {
-                            ask = param().param_value();
-                          }
+                          ask = get_param_double_with_workaround(param());
                         });
         if ((ask != 0.0) && (bid != 0.0)) {
           double spread_ratio = ask/bid - double{1.0};
